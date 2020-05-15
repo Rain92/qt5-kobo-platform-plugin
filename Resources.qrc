@@ -1,0 +1,7 @@
+<RCC>
+    <qresource prefix="/resources"/>
+    <qresource prefix="/">
+        <file>scripts/disable-wifi.sh</file>
+        <file>scripts/restore-wifi.sh</file>
+    </qresource>
+</RCC>
