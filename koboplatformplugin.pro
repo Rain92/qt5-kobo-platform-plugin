@@ -40,7 +40,7 @@ HEADERS = \
 
 OTHER_FILES += \
 
-target.path = /mnt/onboard/.adds/qt-5.14.2-kobo/plugins/platforms
+target.path = /mnt/onboard/.adds/qt-linux-5.15.0-kobo/plugins/platforms
 INSTALLS += target
 
 DISTFILES += \
