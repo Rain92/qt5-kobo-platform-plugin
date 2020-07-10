@@ -1,11 +1,5 @@
 #include "kobobuttonintegration.h"
 
-#include <qevent.h>
-#include <qguiapplication.h>
-#include <unistd.h>
-
-#include "kobokey.h"
-
 #define KEY_LIGHT 90
 #define KEY_HOME 102
 #define KEY_POWER 116
@@ -19,10 +13,10 @@
 #define OFF 0
 #define ON 1
 
-KoboButtonIntegration::KoboButtonIntegration(QObject *parent, bool debug)
+KoboButtonIntegration::KoboButtonIntegration(QObject *parent, const char *inputDevice, bool debug)
     : QObject(parent), debug(debug), isInputCaptured(false)
 {
-    inputHandle = open("/dev/input/event0", O_RDONLY);
+    inputHandle = open(inputDevice, O_RDONLY);
 
     socketNotifier = new QSocketNotifier(inputHandle, QSocketNotifier::Read);
 
@@ -38,6 +32,36 @@ KoboButtonIntegration::~KoboButtonIntegration()
     releaseInput();
     delete socketNotifier;
     close(inputHandle);
+}
+
+void KoboButtonIntegration::captureInput()
+{
+    if (isInputCaptured || inputHandle == -1)
+        return;
+
+    if (debug)
+        qDebug("KoboKb: Attempting to capture input...");
+
+    int res = ioctl(inputHandle, EVIOCGRAB, ON);
+
+    if (res == 0)
+        isInputCaptured = true;
+    else if (debug)
+        qDebug() << "KoboKb: Capture keyboard input error:" << res;
+}
+
+void KoboButtonIntegration::releaseInput()
+{
+    if (!isInputCaptured || inputHandle == -1)
+        return;
+
+    if (debug)
+        qDebug("KoboKb: attempting to release input...");
+
+    if (ioctl(inputHandle, EVIOCGRAB, OFF) == 0)
+        isInputCaptured = false;
+    else if (debug)
+        qDebug("KoboKb: release keyboard input: error");
 }
 
 void KoboButtonIntegration::activity(int)
@@ -85,38 +109,9 @@ void KoboButtonIntegration::activity(int)
 
         if (debug)
             qDebug() << "found focusobject:" << (focusObject != nullptr) << "in.type:" << in.type
-                     << " | in.code: " << in.code << " | code:" << code << " | " << (in.value ? "pressed" : "released");
+                     << " | in.code: " << in.code << " | code:" << code << " | "
+                     << (in.value ? "pressed" : "released");
     }
 
     socketNotifier->setEnabled(true);
-}
-
-void KoboButtonIntegration::captureInput()
-{
-    if (isInputCaptured || inputHandle == -1)
-        return;
-
-    if (debug)
-        qDebug("KoboKb: Attempting to capture input...");
-
-    int res = ioctl(inputHandle, EVIOCGRAB, ON);
-
-    if (res == 0)
-        isInputCaptured = true;
-    else if (debug)
-        qDebug() << "KoboKb: Capture keyboard input error:" << res;
-}
-
-void KoboButtonIntegration::releaseInput()
-{
-    if (!isInputCaptured || inputHandle == -1)
-        return;
-
-    if (debug)
-        qDebug("KoboKb: attempting to release input...");
-
-    if (ioctl(inputHandle, EVIOCGRAB, OFF) == 0)
-        isInputCaptured = false;
-    else if (debug)
-        qDebug("KoboKb: release keyboard input: error");
 }

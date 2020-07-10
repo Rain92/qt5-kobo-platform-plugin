@@ -12,15 +12,10 @@
 #include <qpa/qplatforminputcontextfactory_p.h>
 #include <qpa/qwindowsysteminterface.h>
 
-#include <QtCore/QRegularExpression>
-
-#include "kobobuttonintegration.h"
-#include "kobofbscreen.h"
-#include "koboplatformfunctions.h"
-
 KoboPlatformIntegration::KoboPlatformIntegration(const QStringList &paramList)
     : m_paramList(paramList),
       m_primaryScreen(nullptr),
+      m_inputContext(nullptr),
       m_fontDb(new QGenericUnixFontDatabase),
       m_services(new QGenericUnixServices),
       m_kbdMgr(nullptr),
@@ -28,8 +23,10 @@ KoboPlatformIntegration::KoboPlatformIntegration(const QStringList &paramList)
       koboAdditions(nullptr),
       debug(false)
 {
+    koboDevice = determineDevice();
+
     if (!m_primaryScreen)
-        m_primaryScreen = new KoboFbScreen(paramList);
+        m_primaryScreen = new KoboFbScreen(paramList, &koboDevice);
 }
 
 KoboPlatformIntegration::~KoboPlatformIntegration()
@@ -45,8 +42,6 @@ void KoboPlatformIntegration::initialize()
         qWarning("kobofb: Failed to initialize screen");
 
     m_inputContext = QPlatformInputContextFactory::create();
-
-    m_vtHandler.reset(new QFbVtHandler);
 
     createInputHandlers();
 }
@@ -98,10 +93,12 @@ QPlatformServices *KoboPlatformIntegration::services() const
 
 void KoboPlatformIntegration::createInputHandlers()
 {
-    int touchscreenRotation = 0;
     QString touchscreenDevice("/dev/input/event1");
     QRegularExpression rotTouchRx("touchscreen_rotate=(.*)");
     QRegularExpression touchDevRx("touchscreen_device=(.*)");
+    QRegularExpression touchDriverRx("touchscreen_driver=(.*)");
+    QRegularExpression touchInvXRx("touchscreen_invert_x=(.*)");
+    QRegularExpression touchInvYRx("touchscreen_invert_y=(.*)");
 
     for (const QString &arg : qAsConst(m_paramList))
     {
@@ -109,23 +106,46 @@ void KoboPlatformIntegration::createInputHandlers()
             debug = true;
 
         QRegularExpressionMatch match;
-        if (arg.contains(rotTouchRx, &match))
-            touchscreenRotation = match.captured(1).toInt();
         if (arg.contains(touchDevRx, &match))
             touchscreenDevice = match.captured(1);
+        if (arg.contains(rotTouchRx, &match))
+        {
+            bool ok = false;
+            int rotation = match.captured(1).toInt(&ok);
+            if (ok)
+                koboDevice.touchscreenOrientation.rotation = rotation;
+        }
+        if (arg.contains(touchInvXRx, &match) && match.captured(1).toInt() > 0)
+        {
+            koboDevice.touchscreenOrientation.invertX = true;
+        }
+        if (arg.contains(touchInvYRx, &match) && match.captured(1).toInt() > 0)
+        {
+            koboDevice.touchscreenOrientation.invertY = true;
+        }
     }
 
-    QString evdevTouchArgs(QString("%1:rotate=%2").arg(touchscreenDevice).arg(touchscreenRotation));
+    QString evdevTouchArgs(
+        QString("%1:rotate=%2").arg(touchscreenDevice).arg(koboDevice.touchscreenOrientation.rotation));
+    if (koboDevice.touchscreenOrientation.invertX)
+        evdevTouchArgs += ":invertx";
+    if (koboDevice.touchscreenOrientation.invertY)
+        evdevTouchArgs += ":inverty";
 
-    new QEvdevTouchManager(QLatin1String("EvdevTouch"), evdevTouchArgs, this);
+    new QEvdevTouchManager("EvdevTouch", evdevTouchArgs, this);
 
-    koboKeyboard = new KoboButtonIntegration(this, debug);
-    koboAdditions = new KoboPlatformAdditions(this, *this->m_primaryScreen->deviceDescriptor());
+    koboKeyboard = new KoboButtonIntegration(this, "/dev/input/event0", debug);
+    koboAdditions = new KoboPlatformAdditions(this, koboDevice);
 }
 
 QPlatformNativeInterface *KoboPlatformIntegration::nativeInterface() const
 {
     return const_cast<KoboPlatformIntegration *>(this);
+}
+
+KoboDeviceDescriptor *KoboPlatformIntegration::deviceDescriptor()
+{
+    return &koboDevice;
 }
 
 QFunctionPointer KoboPlatformIntegration::platformFunction(const QByteArray &function) const
@@ -198,5 +218,5 @@ KoboDeviceDescriptor KoboPlatformIntegration::getKoboDeviceDescriptorStatic()
     KoboPlatformIntegration *self =
         static_cast<KoboPlatformIntegration *>(QGuiApplicationPrivate::platformIntegration());
 
-    return *self->m_primaryScreen->deviceDescriptor();
+    return *self->deviceDescriptor();
 }

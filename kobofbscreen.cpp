@@ -29,117 +29,6 @@
 #include <stdexcept>
 #include <string>
 
-#include "kobodevicedescriptor.h"
-
-QT_BEGIN_NAMESPACE
-
-static QString exec(const char *cmd)
-{
-    std::array<char, 128> buffer;
-    QString result;
-    std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(cmd, "r"), pclose);
-    if (!pipe)
-    {
-        throw std::runtime_error("popen() failed!");
-    }
-    while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr)
-    {
-        result += buffer.data();
-    }
-    return result.trimmed();
-}
-
-static KoboDeviceDescriptor determineDevice()
-{
-    auto deviceName = exec("/bin/kobo_config.sh 2>/dev/null");
-    auto modelNumberStr = exec("cut -f 6 -d ',' /mnt/onboard/.kobo/version | sed -e 's/^[0-]*//'");
-    int modelNumber = modelNumberStr.toInt();
-
-    KoboDevice device = KoboOther;
-    int dpi = 260;
-
-    if (deviceName == "alyssum")
-    {
-        device = KoboGloHD;
-        dpi = 300;
-    }
-    else if (deviceName == "dahlia")
-    {
-        device = KoboAuraH2O;
-        dpi = 265;
-    }
-    else if (deviceName == "dragon")
-    {
-        device = KoboAuraHD;
-        dpi = 265;
-    }
-    else if (deviceName == "phoenix")
-    {
-        device = KoboAura;
-        dpi = 212;
-    }
-    else if (deviceName == "kraken")
-    {
-        device = KoboGlo;
-        dpi = 213;
-    }
-    else if (deviceName == "trilogy")
-    {
-        device = KoboTouch;
-        dpi = 167;
-    }
-    else if (deviceName == "pixie")
-    {
-        device = KoboMini;
-        dpi = 200;
-    }
-    else if (deviceName == "pika")
-    {
-        device = KoboTouch2;
-        dpi = 167;
-    }
-    else if (deviceName == "daylight")
-    {
-        device = KoboAuraOne;
-        dpi = 300;
-    }
-    else if (deviceName == "star")
-    {
-        device = KoboAura2;
-        dpi = 212;
-    }
-    else if (deviceName == "nova")
-    {
-        device = KoboClaraHD;
-        dpi = 300;
-    }
-    else if (deviceName == "frost")
-    {
-        device = KoboForma;
-        dpi = 300;
-    }
-
-    else if (deviceName == "snow")
-    {
-        if (modelNumber == 374)
-            device = KoboAuraH2O2_v1;
-        else if (modelNumber == 378)
-            device = KoboAuraH2O2_v2;
-        dpi = 265;
-    }
-
-    bool hasComfortlight = device == KoboAuraOne || device == KoboAuraH2O2_v1 || device == KoboAuraH2O2_v2 ||
-                           device == KoboClaraHD || device == KoboForma;
-
-    int frontlightMaxLevel = 100;
-    int frontlightMaxTemp = hasComfortlight ? (KoboForma == device || KoboClaraHD == device ? 10 : 100) : 0;
-
-    KoboDeviceDescriptor descriptor{device,          deviceName,         modelNumber,      dpi, 0, 0, 0, 0,
-                                    hasComfortlight, frontlightMaxLevel, frontlightMaxTemp};
-
-    return descriptor;
-}
-
 static int openFramebufferDevice(const QString &dev)
 {
     int fd = -1;
@@ -396,7 +285,8 @@ static void blankScreen(int fd, bool on)
     ioctl(fd, FBIOBLANK, on ? VESA_POWERDOWN : VESA_NO_BLANKING);
 }
 
-KoboFbScreen::KoboFbScreen(const QStringList &args) : mArgs(args), mFbFd(-1), mTtyFd(-1), mBlitter(0)
+KoboFbScreen::KoboFbScreen(const QStringList &args, KoboDeviceDescriptor *koboDevice)
+    : koboDevice(koboDevice), mArgs(args), mFbFd(-1), mTtyFd(-1), mBlitter(0)
 {
     mMmap.data = 0;
 }
@@ -497,13 +387,12 @@ bool KoboFbScreen::initialize()
     QRect geometry = determineGeometry(vinfo, userGeometry);
     mGeometry = QRect(QPoint(0, 0), geometry.size());
     mFormat = determineFormat(vinfo, mDepth);
-    koboDevice = determineDevice();
 
-    mPhysicalSize = determinePhysicalSize(vinfo, userMmSize, geometry.size(), koboDevice.dpi);
-    koboDevice.width = mGeometry.width();
-    koboDevice.height = mGeometry.height();
-    koboDevice.physicalWidth = mPhysicalSize.width();
-    koboDevice.physicalHeight = mPhysicalSize.height();
+    mPhysicalSize = determinePhysicalSize(vinfo, userMmSize, geometry.size(), koboDevice->dpi);
+    koboDevice->width = mGeometry.width();
+    koboDevice->height = mGeometry.height();
+    koboDevice->physicalWidth = mPhysicalSize.width();
+    koboDevice->physicalHeight = mPhysicalSize.height();
 
     // mmap the framebuffer
     mMmap.size = finfo.smem_len;
@@ -520,8 +409,8 @@ bool KoboFbScreen::initialize()
     QFbScreen::initializeCompositor();
     mFbScreenImage = QImage(mMmap.data, geometry.width(), geometry.height(), mBytesPerLine, mFormat);
 
-    mCursor = new QFbCursor(this);
-    mCursor->setOverrideCursor(Qt::BlankCursor);
+    //    mCursor = new QFbCursor(this);
+    //    mCursor->setOverrideCursor(Qt::BlankCursor);
 
     mTtyFd = openTtyDevice(ttyDevice);
     if (mTtyFd == -1)
@@ -531,7 +420,7 @@ bool KoboFbScreen::initialize()
     blankScreen(mFbFd, false);
 
     int marker = getpid();
-    bool wait_refresh_completed = koboDevice.device == KoboTouch;
+    bool wait_refresh_completed = koboDevice->device == KoboTouch;
 
     refreshThread.initialize(mFbFd, mGeometry.width(), mGeometry.height(), marker, wait_refresh_completed,
                              PartialRefreshMode::MixedPartialRefresh);
@@ -540,15 +429,10 @@ bool KoboFbScreen::initialize()
     {
         //        qputenv("QT_SCALE_FACTOR_ROUNDING_POLICY ", "PassThrough");
         qputenv("QT_SCREEN_SCALE_FACTORS",
-                QString::number(koboDevice.dpi / (double)logicalDpiTarget, 'g', 8).toLatin1());
+                QString::number(koboDevice->dpi / (double)logicalDpiTarget, 'g', 8).toLatin1());
     }
 
     return true;
-}
-
-KoboDeviceDescriptor *KoboFbScreen::deviceDescriptor()
-{
-    return &koboDevice;
 }
 
 void KoboFbScreen::setPartialRefreshMode(PartialRefreshMode partial_refresh_mode)
@@ -613,5 +497,3 @@ QPixmap KoboFbScreen::grabWindow(WId wid, int x, int y, int width, int height) c
 
     return QPixmap();
 }
-
-QT_END_NAMESPACE
