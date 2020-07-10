@@ -21,7 +21,6 @@ SOURCES = main.cpp \
           kobofbscreen.cpp \
           koboplatformadditions.cpp \
           koboplatformintegration.cpp \
-          kobotouchmanager.cpp \
           kobowifimanager.cpp
 
 HEADERS = \
@@ -34,7 +33,6 @@ HEADERS = \
           koboplatformadditions.h \
           koboplatformfunctions.h \
           koboplatformintegration.h \
-          kobotouchmanager.h \
           kobowifimanager.h \
           mxcfb-kobo.h \
           partialrefreshmode.h

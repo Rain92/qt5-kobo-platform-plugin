@@ -3,14 +3,12 @@
 
 #include <QtEventDispatcherSupport/private/qgenericunixeventdispatcher_p.h>
 #include <QtFbSupport/private/qfbbackingstore_p.h>
-#include <QtFbSupport/private/qfbvthandler_p.h>
 #include <QtFbSupport/private/qfbwindow_p.h>
 #include <QtFontDatabaseSupport/private/qgenericunixfontdatabase_p.h>
 #include <QtGui/private/qguiapplication_p.h>
 #include <QtInputSupport/private/qevdevtouchmanager_p.h>
 #include <QtServiceSupport/private/qgenericunixservices_p.h>
 #include <qpa/qplatforminputcontextfactory_p.h>
-#include <qpa/qwindowsysteminterface.h>
 
 KoboPlatformIntegration::KoboPlatformIntegration(const QStringList &paramList)
     : m_paramList(paramList),
