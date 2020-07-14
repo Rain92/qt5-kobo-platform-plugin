@@ -24,7 +24,7 @@ enum KoboDevice
     KoboOther
 };
 
-struct TouchscreenOrientation
+struct TouchscreenTransform
 {
     int rotation;
     bool invertX;
@@ -41,7 +41,7 @@ struct KoboDeviceDescriptor
     int height;
     qreal physicalWidth;
     qreal physicalHeight;
-    TouchscreenOrientation touchscreenOrientation;
+    TouchscreenTransform touchscreenTransform;
     bool hasComfortLight;
     int frontlightMaxLevel;
     int frontlightMaxTemp;

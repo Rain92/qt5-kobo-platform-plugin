@@ -111,23 +111,23 @@ void KoboPlatformIntegration::createInputHandlers()
             bool ok = false;
             int rotation = match.captured(1).toInt(&ok);
             if (ok)
-                koboDevice.touchscreenOrientation.rotation = rotation;
+                koboDevice.touchscreenTransform.rotation = rotation;
         }
         if (arg.contains(touchInvXRx, &match) && match.captured(1).toInt() > 0)
         {
-            koboDevice.touchscreenOrientation.invertX = true;
+            koboDevice.touchscreenTransform.invertX = true;
         }
         if (arg.contains(touchInvYRx, &match) && match.captured(1).toInt() > 0)
         {
-            koboDevice.touchscreenOrientation.invertY = true;
+            koboDevice.touchscreenTransform.invertY = true;
         }
     }
 
     QString evdevTouchArgs(
-        QString("%1:rotate=%2").arg(touchscreenDevice).arg(koboDevice.touchscreenOrientation.rotation));
-    if (koboDevice.touchscreenOrientation.invertX)
+        QString("%1:rotate=%2").arg(touchscreenDevice).arg(koboDevice.touchscreenTransform.rotation));
+    if (koboDevice.touchscreenTransform.invertX)
         evdevTouchArgs += ":invertx";
-    if (koboDevice.touchscreenOrientation.invertY)
+    if (koboDevice.touchscreenTransform.invertY)
         evdevTouchArgs += ":inverty";
 
     new QEvdevTouchManager("EvdevTouch", evdevTouchArgs, this);
