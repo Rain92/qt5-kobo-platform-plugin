@@ -97,6 +97,14 @@ void KoboPlatformIntegration::createInputHandlers()
     QRegularExpression touchDriverRx("touchscreen_driver=(.*)");
     QRegularExpression touchInvXRx("touchscreen_invert_x=(.*)");
     QRegularExpression touchInvYRx("touchscreen_invert_y=(.*)");
+    QRegularExpression touchRangeXRx("touchscreen_max_range_x=(.*)");
+    QRegularExpression touchRangeYRx("touchscreen_max_range_y=(.*)");
+    QRegularExpression touchRangeFlipRx("touchscreen_flip_axes_limit=(.*)");
+
+    bool useHWScreenLimits = true;
+    bool manualRangeFlip = false;
+    int touchRangeX = 0;
+    int touchRangeY = 0;
 
     for (const QString &arg : qAsConst(m_paramList))
     {
@@ -121,7 +129,27 @@ void KoboPlatformIntegration::createInputHandlers()
         {
             koboDevice.touchscreenTransform.invertY = true;
         }
+        if (arg.contains(touchRangeXRx, &match))
+        {
+            touchRangeX = match.captured(1).toInt();
+        }
+        if (arg.contains(touchRangeYRx, &match))
+        {
+            touchRangeY = match.captured(1).toInt();
+        }
+        if (arg.contains(touchRangeFlipRx, &match) && match.captured(1).toInt() > 0)
+        {
+            manualRangeFlip = true;
+        }
     }
+
+    bool flipTouchscreenAxes = (koboDevice.touchscreenTransform.rotation / 90) % 2 == 1;
+    if (manualRangeFlip)
+        flipTouchscreenAxes = !flipTouchscreenAxes;
+    if (useHWScreenLimits && touchRangeX == 0)
+        touchRangeX = flipTouchscreenAxes ? koboDevice.height : koboDevice.width;
+    if (useHWScreenLimits && touchRangeY == 0)
+        touchRangeY = flipTouchscreenAxes ? koboDevice.width : koboDevice.height;
 
     QString evdevTouchArgs(
         QString("%1:rotate=%2").arg(touchscreenDevice).arg(koboDevice.touchscreenTransform.rotation));
@@ -129,6 +157,10 @@ void KoboPlatformIntegration::createInputHandlers()
         evdevTouchArgs += ":invertx";
     if (koboDevice.touchscreenTransform.invertY)
         evdevTouchArgs += ":inverty";
+    if (touchRangeX > 0)
+        evdevTouchArgs += QString(":hw_range_x_max=%1").arg(touchRangeX);
+    if (touchRangeY > 0)
+        evdevTouchArgs += QString(":hw_range_y_max=%1").arg(touchRangeY);
 
     new QEvdevTouchManager("EvdevTouch", evdevTouchArgs, this);
 
