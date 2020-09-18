@@ -171,7 +171,9 @@ static KoboDeviceDescriptor determineDevice()
                            device == KoboClaraHD || device == KoboForma || device == KoboLibra;
 
     int frontlightMaxLevel = 100;
-    int frontlightMaxTemp = hasComfortlight ? (KoboForma == device || KoboClaraHD == device ? 10 : 100) : 0;
+    int frontlightMaxTemp =
+        hasComfortlight ? (device == KoboClaraHD || device == KoboForma || device == KoboLibra ? 10 : 100)
+                        : 0;
 
     KoboDeviceDescriptor descriptor{
         device,          deviceName,         modelNumber,      dpi, 0, 0, 0, 0, {rotation, invx, invy},
