@@ -10,10 +10,10 @@ CONFIG += relative_qt_rpath  # Qt's plugins should be relocatable
 QT +=  widgets \
     core-private gui-private \
     service_support-private eventdispatcher_support-private \
-    fontdatabase_support-private fb_support-private
+    fontdatabase_support-private fb_support-private devicediscovery_support-private testlib
 
-qtHaveModule(input_support-private): \
-    QT += input_support-private
+#qtHaveModule(input_support-private): \
+#    QT += input_support-private
 
 SOURCES = main.cpp \
           einkrefreshthread.cpp \
@@ -21,9 +21,13 @@ SOURCES = main.cpp \
           kobofbscreen.cpp \
           koboplatformadditions.cpp \
           koboplatformintegration.cpp \
-          kobowifimanager.cpp
+          kobowifimanager.cpp \
+          qevdevtouchmanager.cpp \
+          qevdevtouchhandler.cpp \ 
+          qtouchoutputmapping.cpp \
+          qevdevutil.cpp
 
-HEADERS = \
+HEADERS = devicehandlerlist_p.h \
           einkrefreshthread.h \
           eink.h \
           kobobuttonintegration.h \
@@ -35,12 +39,17 @@ HEADERS = \
           koboplatformintegration.h \
           kobowifimanager.h \
           mxcfb-kobo.h \
-          partialrefreshmode.h
+          partialrefreshmode.h \
+          qevdevtouchfilter_p.h \
+          qevdevtouchhandler_p.h \
+          qevdevtouchmanager_p.h \
+          qevdevutil_p.h \
+          qtouchoutputmapping_p.h
 
 
 OTHER_FILES += \
 
-target.path = /mnt/onboard/.adds/qt-linux-5.15.2-kobo/plugins/platforms
+target.path = /mnt/onboard/.adds/qt-linux-5.15.1-kobo/plugins/platforms
 INSTALLS += target
 
 DISTFILES += \

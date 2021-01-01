@@ -139,7 +139,11 @@ void KoboPlatformAdditions::setNaturalBrightness(int brig, int temp)
             fWhite = "/sys/class/backlight/mxc_msp430.0/brightness";
             fMixer = "/sys/class/backlight/tlc5947_bl/color";
             break;
-        default:
+        case KoboLibra:
+            fWhite = "/sys/class/backlight/lm3630a_ledb";
+            fRed = "/sys/class/backlight/lm3630a_leda";
+            break;
+       default:
             break;
     }
 
