@@ -503,46 +503,46 @@ void QEvdevTouchScreenData::processInputEvent(input_event *data)
     if (data->type == EV_ABS) {
 
         if (data->code == ABS_MT_POSITION_X || (m_singleTouch && data->code == ABS_X)) {
-            //qDebug() << "EV_ABS MT_POS_X" << data->value;
+            qCDebug(qLcEvdevTouch) << "EV_ABS MT_POS_X" << data->value;
             m_currentData.x = qBound(hw_range_x_min, data->value, hw_range_x_max);
             if (m_singleTouch) {
                 m_contacts[m_currentSlot].x = m_currentData.x;
-                //qDebug() << "EV_ABS MT_POS_X Single Touch"; 
+                qCDebug(qLcEvdevTouch) << "EV_ABS MT_POS_X Single Touch"; 
             }
             if (m_typeB) {
-                //qDebug() << "EV_ABS MT_POS_X Type B"; 
+                qCDebug(qLcEvdevTouch) << "EV_ABS MT_POS_X Type B"; 
                 m_contacts[m_currentSlot].x = m_currentData.x;
                 if (m_contacts[m_currentSlot].state == Qt::TouchPointStationary)
                     m_contacts[m_currentSlot].state = Qt::TouchPointMoved;
             }
         } else if (data->code == ABS_MT_POSITION_Y || (m_singleTouch && data->code == ABS_Y)) {
             m_currentData.y = qBound(hw_range_y_min, data->value, hw_range_y_max);
-            //qDebug() << "EV_ABS MT_POS_X" << data->value;
+            qCDebug(qLcEvdevTouch) << "EV_ABS MT_POS_X" << data->value;
             if (m_singleTouch) {
                 m_contacts[m_currentSlot].y = m_currentData.y;
-                //qDebug() << "EV_ABS MT_POS_Y Single touch";
+                qCDebug(qLcEvdevTouch) << "EV_ABS MT_POS_Y Single touch";
             }
             if (m_typeB) {
-                //qDebug() << "EV_ABS MT_POS_Y Type B";
+                qCDebug(qLcEvdevTouch) << "EV_ABS MT_POS_Y Type B";
                 m_contacts[m_currentSlot].y = m_currentData.y;
                 if (m_contacts[m_currentSlot].state == Qt::TouchPointStationary)
                     m_contacts[m_currentSlot].state = Qt::TouchPointMoved;
             }
         } else if (data->code == ABS_MT_TRACKING_ID) {
-            //qDebug() << "EV_ABS TRACKING_ID " << data->value;
+            qCDebug(qLcEvdevTouch) << "EV_ABS TRACKING_ID " << data->value;
             m_currentData.trackingId = data->value;
             if (m_typeB) {
                 if (m_currentData.trackingId == -1) {
                     m_contacts[m_currentSlot].state = Qt::TouchPointReleased;
-                    //qDebug() << "EV_ABS TRACKING_ID -1 touch point released";
+                    qCDebug(qLcEvdevTouch) << "EV_ABS TRACKING_ID -1 touch point released";
                 } else {
                     m_contacts[m_currentSlot].state = Qt::TouchPointPressed;
                     m_contacts[m_currentSlot].trackingId = m_currentData.trackingId;
-                    //qDebug() << "EV_ABS TRACKING_ID !-1 touch point pressed";
+                    qCDebug(qLcEvdevTouch) << "EV_ABS TRACKING_ID !-1 touch point pressed";
                 }
             }
         } else if (data->code == ABS_MT_TOUCH_MAJOR) {
-            //qDebug() << "EV_ABS TOUCH_MAJOR";
+            qCDebug(qLcEvdevTouch) << "EV_ABS TOUCH_MAJOR";
             m_currentData.maj = data->value;
             //MODIFICATION two lines followed are commented
             //if (data->value == 0)
@@ -550,7 +550,7 @@ void QEvdevTouchScreenData::processInputEvent(input_event *data)
             if (m_typeB)
                 m_contacts[m_currentSlot].maj = m_currentData.maj;
         } else if (data->code == ABS_PRESSURE || data->code == ABS_MT_PRESSURE) {
-            //qDebug() << "EV_ABS PRESSURE";
+            qCDebug(qLcEvdevTouch) << "EV_ABS PRESSURE";
             if (Q_UNLIKELY(qLcEvents().isDebugEnabled()))
                 qCDebug(qLcEvents, "EV_ABS code 0x%x: pressure %d; bounding to [%d,%d]",
                         data->code, data->value, hw_pressure_min, hw_pressure_max);
@@ -559,25 +559,25 @@ void QEvdevTouchScreenData::processInputEvent(input_event *data)
                 m_contacts[m_currentSlot].pressure = m_currentData.pressure;
         } else if (data->code == ABS_MT_SLOT) {
             m_currentSlot = data->value;
-            //qDebug() << "EV_ABS SLOT";
+            qCDebug(qLcEvdevTouch) << "EV_ABS SLOT";
         }
 
     } else if (data->type == EV_KEY && !m_typeB) {
-        //qDebug() << "EV_KEY";
+        qCDebug(qLcEvdevTouch) << "EV_KEY";
         if (data->code == BTN_TOUCH && data->value == 0) {
             m_contacts[m_currentSlot].state = Qt::TouchPointReleased;
-            //qDebug() << "EV_KEY BTN_TOUCH 0 touchpoint released";
+            qCDebug(qLcEvdevTouch) << "EV_KEY BTN_TOUCH 0 touchpoint released";
         }
 
         //MODIFICATION change state to press
         if (data->code == BTN_TOUCH && data->value == 1) {
             m_contacts[m_currentSlot].state= Qt::TouchPointPressed;
-            //qDebug() << "EV_KEY BTN_TOUCH 1 touchpoint pressed";
+            qCDebug(qLcEvdevTouch) << "EV_KEY BTN_TOUCH 1 touchpoint pressed";
         }
         
     } else if (data->type == EV_SYN && data->code == SYN_MT_REPORT && m_lastEventType != EV_SYN) {
 
-        //qDebug() << "EV_SYN MT_REPORT && lastEvent was not EV_SYN";
+        qCDebug(qLcEvdevTouch) << "EV_SYN MT_REPORT && lastEvent was not EV_SYN";
         // If there is no tracking id, one will be generated later.
         // Until that use a temporary key.
         int key = m_currentData.trackingId;
@@ -588,7 +588,7 @@ void QEvdevTouchScreenData::processInputEvent(input_event *data)
         m_currentData = Contact();
 
     } else if (data->type == EV_SYN && data->code == SYN_REPORT) {
-        //qDebug() << "EV_SYN SYN_REPORT";
+        qCDebug(qLcEvdevTouch) << "EV_SYN SYN_REPORT";
 
         // Ensure valid IDs even when the driver does not report ABS_MT_TRACKING_ID.
         if (!m_contacts.isEmpty() && m_contacts.constBegin().value().trackingId == -1)
@@ -633,7 +633,7 @@ void QEvdevTouchScreenData::processInputEvent(input_event *data)
             if (!m_typeB && contact.state == Qt::TouchPointReleased
                     && !m_lastContacts.contains(key)) {
                 m_contacts.erase(it);
-                //qDebug() << "Erase contact since touchpoint released";
+                qCDebug(qLcEvdevTouch) << "Erase contact since touchpoint released";
                 continue;
             }
 
@@ -674,7 +674,7 @@ void QEvdevTouchScreenData::processInputEvent(input_event *data)
                     contact.state = static_cast<Qt::TouchPointState>(0);
                 else {
                     m_contacts.erase(it);
-                    //qDebug() << "Contact Erase since state is released";
+                    qCDebug(qLcEvdevTouch) << "Contact Erase since state is released";
                 }
             } else {
                 contact.state = Qt::TouchPointStationary;
