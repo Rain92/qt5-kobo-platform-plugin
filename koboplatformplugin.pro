@@ -49,7 +49,7 @@ HEADERS = devicehandlerlist_p.h \
 
 OTHER_FILES += \
 
-target.path = /mnt/onboard/.adds/qt-linux-5.15.1-kobo/plugins/platforms
+target.path = /mnt/onboard/.adds/qt-linux-5.15.2-kobo/plugins/platforms
 INSTALLS += target
 
 DISTFILES += \
