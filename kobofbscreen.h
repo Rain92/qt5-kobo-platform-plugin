@@ -20,6 +20,8 @@ public:
 
     void setPartialRefreshMode(PartialRefreshMode partial_refresh_mode);
 
+    void enableDithering(bool dithering);
+
     void doManualRefresh(QRect region);
 
     QPixmap grabWindow(WId wid, int x, int y, int width, int height) const override;

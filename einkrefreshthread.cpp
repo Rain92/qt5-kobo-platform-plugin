@@ -4,17 +4,18 @@
 #define fastpartialrefreshthreshold 60
 #define fastpartialrefreshthreshold2 40
 
-EinkrefreshThread::EinkrefreshThread() : EinkrefreshThread(0, 0, 0, 0, false, AccuratePartialRefresh) {}
+EinkrefreshThread::EinkrefreshThread() : EinkrefreshThread(0, 0, 0, 0, false, AccuratePartialRefresh, true) {}
 
 EinkrefreshThread::EinkrefreshThread(int fb, int width, int height, int marker, bool wait_completed,
-                                     PartialRefreshMode partial_refresh_mode)
+                                     PartialRefreshMode partial_refresh_mode, bool dithering)
     : exit_flag(0),
       fb(fb),
       width(width),
       height(height),
       marker(marker),
       wait_completed(wait_completed),
-      partial_refresh_mode(partial_refresh_mode)
+      partial_refresh_mode(partial_refresh_mode),
+      dithering(dithering)
 {
 }
 
@@ -24,7 +25,7 @@ EinkrefreshThread::~EinkrefreshThread()
 }
 
 void EinkrefreshThread::initialize(int fb, int width, int height, int marker, bool wait_completed,
-                                   PartialRefreshMode partial_refresh_mode)
+                                   PartialRefreshMode partial_refresh_mode, bool dithering)
 {
     this->fb = fb;
     this->width = width;
@@ -32,6 +33,7 @@ void EinkrefreshThread::initialize(int fb, int width, int height, int marker, bo
     this->marker = marker;
     this->wait_completed = wait_completed;
     this->partial_refresh_mode = partial_refresh_mode;
+    this->dithering = dithering;
 
     this->start();
 }
@@ -39,6 +41,11 @@ void EinkrefreshThread::initialize(int fb, int width, int height, int marker, bo
 void EinkrefreshThread::setPartialRefreshMode(PartialRefreshMode partial_refresh_mode)
 {
     this->partial_refresh_mode = partial_refresh_mode;
+}
+
+void EinkrefreshThread::enableDithering(bool dithering)
+{
+    this->dithering = dithering;
 }
 
 void EinkrefreshThread::refresh(const QRect& r)
@@ -93,8 +100,9 @@ void EinkrefreshThread::run()
                     uint32_t partial_waveform = fast_partial_refresh ? WAVEFORM_MODE_A2 : WAVEFORM_MODE_AUTO;
                     uint32_t waveform_mode = full_refresh ? NTX_WFM_MODE_GC16 : partial_waveform;
                     uint32_t update_mode = full_refresh ? UPDATE_MODE_FULL : UPDATE_MODE_PARTIAL;
+                    uint32_t flags = dithering ? EPDC_FLAG_USE_DITHERING_Y4 : 0;
 
-                    refreshScreenRegion(fb, region, waveform_mode, update_mode, marker);
+                    refreshScreenRegion(fb, region, waveform_mode, update_mode, marker, flags);
 
                     if (wait_completed)
                         waitRefreshComplete(fb, marker);

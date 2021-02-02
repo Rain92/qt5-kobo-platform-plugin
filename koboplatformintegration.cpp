@@ -7,10 +7,8 @@
 #include <QtFontDatabaseSupport/private/qgenericunixfontdatabase_p.h>
 #include <QtGui/private/qguiapplication_p.h>
 #include <QtServiceSupport/private/qgenericunixservices_p.h>
-#include <qpa/qplatforminputcontextfactory_p.h>
-
-
 #include <qevdevtouchmanager_p.h>
+#include <qpa/qplatforminputcontextfactory_p.h>
 
 KoboPlatformIntegration::KoboPlatformIntegration(const QStringList &paramList)
     : m_paramList(paramList),
@@ -190,6 +188,8 @@ QFunctionPointer KoboPlatformIntegration::platformFunction(const QByteArray &fun
         return QFunctionPointer(isBatteryChargingStatic);
     else if (function == KoboPlatformFunctions::setPartialRefreshModeIdentifier())
         return QFunctionPointer(setPartialRefreshModeStatic);
+    else if (function == KoboPlatformFunctions::enableDitheringIdentifier())
+        return QFunctionPointer(enableDitheringStatic);
     else if (function == KoboPlatformFunctions::doManualRefreshIdentifier())
         return QFunctionPointer(doManualRefreshStatic);
     else if (function == KoboPlatformFunctions::getKoboDeviceDescriptorIdentifier())
@@ -235,6 +235,14 @@ void KoboPlatformIntegration::setPartialRefreshModeStatic(PartialRefreshMode par
         static_cast<KoboPlatformIntegration *>(QGuiApplicationPrivate::platformIntegration());
 
     self->m_primaryScreen->setPartialRefreshMode(partial_refresh_mode);
+}
+
+void KoboPlatformIntegration::enableDitheringStatic(bool dithering)
+{
+    KoboPlatformIntegration *self =
+        static_cast<KoboPlatformIntegration *>(QGuiApplicationPrivate::platformIntegration());
+
+    self->m_primaryScreen->enableDithering(dithering);
 }
 
 void KoboPlatformIntegration::doManualRefreshStatic(QRect region)

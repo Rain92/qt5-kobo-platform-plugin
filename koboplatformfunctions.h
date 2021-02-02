@@ -16,8 +16,8 @@ public:
 
     static int getBatteryLevel()
     {
-        auto func =
-            reinterpret_cast<getBatteryLevelType>(QGuiApplication::platformFunction(getBatteryLevelIdentifier()));
+        auto func = reinterpret_cast<getBatteryLevelType>(
+            QGuiApplication::platformFunction(getBatteryLevelIdentifier()));
         if (func)
             return func();
 
@@ -29,8 +29,8 @@ public:
 
     static bool isBatteryCharging()
     {
-        auto func =
-            reinterpret_cast<isBatteryChargingType>(QGuiApplication::platformFunction(isBatteryChargingIdentifier()));
+        auto func = reinterpret_cast<isBatteryChargingType>(
+            QGuiApplication::platformFunction(isBatteryChargingIdentifier()));
         if (func)
             return func();
 
@@ -42,8 +42,8 @@ public:
 
     static void setFrontlightLevel(int val, int temp)
     {
-        auto func =
-            reinterpret_cast<setFrontlightLevelType>(QGuiApplication::platformFunction(setFrontlightLevelIdentifier()));
+        auto func = reinterpret_cast<setFrontlightLevelType>(
+            QGuiApplication::platformFunction(setFrontlightLevelIdentifier()));
         if (func)
             func(val, temp);
     }
@@ -59,19 +59,33 @@ public:
             func(partial_refresh_mode);
     }
 
+    typedef void (*enableDitheringType)(bool dithering);
+    static QByteArray enableDitheringIdentifier() { return QByteArrayLiteral("enableDithering"); }
+
+    static void enableDithering(bool dithering)
+    {
+        auto func = reinterpret_cast<enableDitheringType>(
+            QGuiApplication::platformFunction(enableDitheringIdentifier()));
+        if (func)
+            func(dithering);
+    }
+
     typedef void (*doManualRefreshType)(QRect region);
     static QByteArray doManualRefreshIdentifier() { return QByteArrayLiteral("doManualRefresh"); }
 
     static void doManualRefresh(QRect region)
     {
-        auto func =
-            reinterpret_cast<doManualRefreshType>(QGuiApplication::platformFunction(doManualRefreshIdentifier()));
+        auto func = reinterpret_cast<doManualRefreshType>(
+            QGuiApplication::platformFunction(doManualRefreshIdentifier()));
         if (func)
             func(region);
     }
 
     typedef KoboDeviceDescriptor (*getKoboDeviceDescriptorType)();
-    static QByteArray getKoboDeviceDescriptorIdentifier() { return QByteArrayLiteral("getKoboDeviceDescriptor"); }
+    static QByteArray getKoboDeviceDescriptorIdentifier()
+    {
+        return QByteArrayLiteral("getKoboDeviceDescriptor");
+    }
 
     static KoboDeviceDescriptor getKoboDeviceDescriptor()
     {
@@ -84,7 +98,10 @@ public:
     }
 
     typedef bool (*testInternetConnectionType)(int timeout);
-    static QByteArray testInternetConnectionIdentifier() { return QByteArrayLiteral("testInternetConnection"); }
+    static QByteArray testInternetConnectionIdentifier()
+    {
+        return QByteArrayLiteral("testInternetConnection");
+    }
 
     static bool testInternetConnection(int timeout = 2)
     {

@@ -228,6 +228,8 @@ static QImage::Format determineFormat(const fb_var_screeninfo &info, int depth)
             break;
         }
         case 8:
+            format = QImage::Format_Grayscale8;
+            //            qDebug() << "Using grayscale format.";
             break;
         case 1:
             format = QImage::Format_Mono;  //###: LSB???
@@ -423,7 +425,7 @@ bool KoboFbScreen::initialize()
     bool wait_refresh_completed = koboDevice->device == KoboTouch;
 
     refreshThread.initialize(mFbFd, mGeometry.width(), mGeometry.height(), marker, wait_refresh_completed,
-                             PartialRefreshMode::MixedPartialRefresh);
+                             PartialRefreshMode::MixedPartialRefresh, true);
 
     if (logicalDpiTarget > 0)
     {
@@ -440,6 +442,11 @@ void KoboFbScreen::setPartialRefreshMode(PartialRefreshMode partial_refresh_mode
     this->refreshThread.setPartialRefreshMode(partial_refresh_mode);
 }
 
+void KoboFbScreen::enableDithering(bool dithering)
+{
+    this->refreshThread.enableDithering(dithering);
+}
+
 void KoboFbScreen::doManualRefresh(QRect region)
 {
     this->refreshThread.refresh(region);
@@ -447,6 +454,8 @@ void KoboFbScreen::doManualRefresh(QRect region)
 
 QRegion KoboFbScreen::doRedraw()
 {
+    //    QElapsedTimer t;
+    //    t.start();
     QRegion touched = QFbScreen::doRedraw();
 
     if (touched.isEmpty())
@@ -464,7 +473,7 @@ QRegion KoboFbScreen::doRedraw()
         r = r.united(rect);
 
     refreshThread.refresh(r);
-    //    qDebug() << r;
+    //    qDebug() << r << t.elapsed();
 
     return touched;
 }

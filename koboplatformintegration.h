@@ -48,6 +48,7 @@ private:
     static bool isBatteryChargingStatic();
     static void setFrontlightLevelStatic(int val, int temp);
     static void setPartialRefreshModeStatic(PartialRefreshMode partial_refresh_mode);
+    static void enableDitheringStatic(bool dithering);
     static void doManualRefreshStatic(QRect region);
     static KoboDeviceDescriptor getKoboDeviceDescriptorStatic();
 
