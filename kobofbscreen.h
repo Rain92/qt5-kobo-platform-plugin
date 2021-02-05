@@ -1,5 +1,5 @@
-#ifndef QLINUXFBSCREEN_H
-#define QLINUXFBSCREEN_H
+#ifndef QKOBOFBSCREEN_H
+#define QKOBOFBSCREEN_H
 
 #include <QtFbSupport/private/qfbscreen_p.h>
 
@@ -50,4 +50,4 @@ private:
     QPainter *mBlitter;
 };
 
-#endif  // QLINUXFBSCREEN_H
+#endif  // QKOBOFBSCREEN_H

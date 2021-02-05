@@ -1,5 +1,5 @@
-#ifndef KOBOKB_H
-#define KOBOKB_H
+#ifndef KOBOBUTTONINTEGRATION_H
+#define KOBOBUTTONINTEGRATION_H
 
 #include <fcntl.h>
 #include <linux/input.h>
@@ -36,4 +36,4 @@ private:
     void releaseInput();
 };
 
-#endif  // KOBOKB_H
+#endif  // KOBOBUTTONINTEGRATION_H

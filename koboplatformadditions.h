@@ -1,5 +1,5 @@
-#ifndef H__KOBO_PLATFORM
-#define H__KOBO_PLATFORM
+#ifndef KOBOPLATFORMADDITIONS_H
+#define KOBOPLATFORMADDITIONS_H
 
 #include <QObject>
 
@@ -28,4 +28,4 @@ private:
     KoboDeviceDescriptor device;
 };
 
-#endif  // H__KOBO_PLATFORM
+#endif  // KOBOPLATFORMADDITIONS_H

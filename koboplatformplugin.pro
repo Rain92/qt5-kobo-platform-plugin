@@ -16,8 +16,10 @@ QT +=  widgets \
 #    QT += input_support-private
 
 SOURCES = main.cpp \
+          eink.cpp \
           einkrefreshthread.cpp \
           kobobuttonintegration.cpp \
+          kobodevicedescriptor.cpp \
           kobofbscreen.cpp \
           koboplatformadditions.cpp \
           koboplatformintegration.cpp \
