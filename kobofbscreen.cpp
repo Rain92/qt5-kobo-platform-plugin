@@ -424,8 +424,9 @@ bool KoboFbScreen::initialize()
     int marker = getpid();
     bool wait_refresh_completed = koboDevice->device == KoboTouch;
 
-    refreshThread.initialize(mFbFd, mGeometry.width(), mGeometry.height(), marker, wait_refresh_completed,
-                             PartialRefreshMode::MixedPartialRefresh, true);
+    refreshThread.initialize(mFbFd, {0, 0, mGeometry.width(), mGeometry.height()}, marker,
+                             wait_refresh_completed, PartialRefreshMode::MixedPartialRefresh, WaveForm_GC16,
+                             true);
 
     if (logicalDpiTarget > 0)
     {
@@ -437,9 +438,19 @@ bool KoboFbScreen::initialize()
     return true;
 }
 
-void KoboFbScreen::setPartialRefreshMode(PartialRefreshMode partial_refresh_mode)
+void KoboFbScreen::setPartialRefreshMode(PartialRefreshMode partialRefreshMode)
 {
-    this->refreshThread.setPartialRefreshMode(partial_refresh_mode);
+    this->refreshThread.setPartialRefreshMode(partialRefreshMode);
+}
+
+void KoboFbScreen::setFullScreenRefreshMode(WaveForm waveform)
+{
+    this->refreshThread.setFullScreenRefreshMode(waveform);
+}
+
+void KoboFbScreen::clearScreen(bool waitForCompleted)
+{
+    this->refreshThread.clearScreen(waitForCompleted);
 }
 
 void KoboFbScreen::enableDithering(bool dithering)

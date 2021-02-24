@@ -3,18 +3,23 @@
 #include <algorithm>  // std::min
 #define fastpartialrefreshthreshold 60
 #define fastpartialrefreshthreshold2 40
+#define TOLERANCE 80
 
-EinkrefreshThread::EinkrefreshThread() : EinkrefreshThread(0, 0, 0, 0, false, AccuratePartialRefresh, true) {}
+EinkrefreshThread::EinkrefreshThread()
+    : EinkrefreshThread(0, {}, 0, false, AccuratePartialRefresh, WaveForm_GC16, true)
+{
+}
 
-EinkrefreshThread::EinkrefreshThread(int fb, int width, int height, int marker, bool wait_completed,
-                                     PartialRefreshMode partial_refresh_mode, bool dithering)
-    : exit_flag(0),
+EinkrefreshThread::EinkrefreshThread(int fb, QRect screenRect, int marker, bool waitCompleted,
+                                     PartialRefreshMode partialRefreshMode, WaveForm fullscreenWaveForm,
+                                     bool dithering)
+    : exitFlag(0),
       fb(fb),
-      width(width),
-      height(height),
+      screenRect(screenRect),
       marker(marker),
-      wait_completed(wait_completed),
-      partial_refresh_mode(partial_refresh_mode),
+      waitCompleted(waitCompleted),
+      partialRefreshMode(partialRefreshMode),
+      fullscreenWaveForm(fullscreenWaveForm),
       dithering(dithering)
 {
 }
@@ -24,23 +29,53 @@ EinkrefreshThread::~EinkrefreshThread()
     doExit();
 }
 
-void EinkrefreshThread::initialize(int fb, int width, int height, int marker, bool wait_completed,
-                                   PartialRefreshMode partial_refresh_mode, bool dithering)
+void EinkrefreshThread::initialize(int fb, QRect screenRect, int marker, bool waitCompleted,
+                                   PartialRefreshMode partialRefreshMode, WaveForm fullscreenWaveForm,
+                                   bool dithering)
 {
     this->fb = fb;
-    this->width = width;
-    this->height = height;
+    this->screenRect = screenRect;
     this->marker = marker;
-    this->wait_completed = wait_completed;
-    this->partial_refresh_mode = partial_refresh_mode;
+    this->waitCompleted = waitCompleted;
+    this->partialRefreshMode = partialRefreshMode;
+    this->fullscreenWaveForm = fullscreenWaveForm;
     this->dithering = dithering;
 
     this->start();
 }
 
-void EinkrefreshThread::setPartialRefreshMode(PartialRefreshMode partial_refresh_mode)
+void EinkrefreshThread::setPartialRefreshMode(PartialRefreshMode partialRefreshMode)
 {
-    this->partial_refresh_mode = partial_refresh_mode;
+    this->partialRefreshMode = partialRefreshMode;
+}
+
+void EinkrefreshThread::setFullScreenRefreshMode(WaveForm waveform)
+{
+    this->fullscreenWaveForm = waveform;
+}
+
+void EinkrefreshThread::clearScreen(bool waitForCompleted)
+{
+    if (!exitFlag)
+    {
+        mutexWaitCondition.lock();
+        waitCondition.wait(&mutexWaitCondition);
+        mutexWaitCondition.unlock();
+
+        if (!exitFlag)
+        {
+            mxcfb_rect region;
+            region.top = screenRect.top();
+            region.left = screenRect.left();
+            region.width = screenRect.width();
+            region.height = screenRect.height();
+
+            refreshScreenRegion(fb, region, NTX_WFM_MODE_INIT, UPDATE_MODE_FULL, marker, 0);
+
+            if (waitForCompleted)
+                waitRefreshComplete(fb, marker);
+        }
+    }
 }
 
 void EinkrefreshThread::enableDithering(bool dithering)
@@ -50,61 +85,108 @@ void EinkrefreshThread::enableDithering(bool dithering)
 
 void EinkrefreshThread::refresh(const QRect& r)
 {
-    mutex_queue.lock();
+    mutexQueue.lock();
+    for (int i = 0; i < queue.size(); i++)
+    {
+        auto& r2 = queue.at(i);
+        if (r.contains(r2))
+        {
+            queue.removeAt(i);
+            i--;
+        }
+        else if (r2.contains(r))
+        {
+            mutexQueue.unlock();
+            return;
+        }
+    }
     queue.enqueue(r);
-    mutex_queue.unlock();
-    waitcondition.wakeAll();
+    mutexQueue.unlock();
+    waitCondition.wakeAll();
+    //    qDebug() << "scheduled:" << r;
 }
 
 void EinkrefreshThread::doExit()
 {
-    exit_flag = 1;
-    waitcondition.wakeAll();
+    exitFlag = 1;
+    waitCondition.wakeAll();
     wait();
 }
 
 void EinkrefreshThread::run()
 {
-    while (!exit_flag)
+    while (!exitFlag)
     {
-        mutex_waitcondition.lock();
-        waitcondition.wait(&mutex_waitcondition);
-        mutex_waitcondition.unlock();
+        mutexWaitCondition.lock();
+        waitCondition.wait(&mutexWaitCondition);
+        mutexWaitCondition.unlock();
 
-        if (!exit_flag)
+        if (!exitFlag)
         {
             while (true)
             {
-                mutex_queue.lock();
+                mutexQueue.lock();
                 QRect r(queue.isEmpty() ? QRect() : queue.dequeue());
-                mutex_queue.unlock();
+                mutexQueue.unlock();
 
                 if (!r.isNull())
                 {
-                    bool full_refresh = r.width() == width && r.height() == height;
+                    bool isFullRefresh = r.width() >= screenRect.width() - TOLERANCE &&
+                                         r.height() >= screenRect.height() - TOLERANCE;
 
-                    struct mxcfb_rect region;
+                    if (isFullRefresh)
+                        r = screenRect;
+
+                    mxcfb_rect region;
 
                     region.top = r.top();
                     region.left = r.left();
                     region.width = r.width();
                     region.height = r.height();
 
-                    bool is_small = (r.width() < fastpartialrefreshthreshold &&
-                                     r.height() < fastpartialrefreshthreshold) ||
-                                    (r.width() + r.height() < fastpartialrefreshthreshold2);
+                    bool isSmall = (r.width() < fastpartialrefreshthreshold &&
+                                    r.height() < fastpartialrefreshthreshold) ||
+                                   (r.width() + r.height() < fastpartialrefreshthreshold2);
 
-                    bool fast_partial_refresh = partial_refresh_mode == FastPartialRefresh ||
-                                                (partial_refresh_mode == MixedPartialRefresh && is_small);
+                    bool fastPartialRefresh = partialRefreshMode == FastPartialRefresh ||
+                                              (partialRefreshMode == MixedPartialRefresh && isSmall);
 
-                    uint32_t partial_waveform = fast_partial_refresh ? WAVEFORM_MODE_A2 : WAVEFORM_MODE_AUTO;
-                    uint32_t waveform_mode = full_refresh ? NTX_WFM_MODE_GC16 : partial_waveform;
-                    uint32_t update_mode = full_refresh ? UPDATE_MODE_FULL : UPDATE_MODE_PARTIAL;
+                    int actualFullscreenWaveForm;
+                    switch (fullscreenWaveForm)
+                    {
+                        case WaveForm_AUTO:
+                            actualFullscreenWaveForm = WAVEFORM_MODE_AUTO;
+                            break;
+                        case WaveForm_A2:
+                            actualFullscreenWaveForm = NTX_WFM_MODE_A2;
+                            break;
+                        case WaveForm_GC4:
+                            actualFullscreenWaveForm = NTX_WFM_MODE_GC4;
+                            break;
+                        case WaveForm_GC16:
+                            actualFullscreenWaveForm = NTX_WFM_MODE_GC16;
+                            break;
+                        case WaveForm_GL16:
+                            actualFullscreenWaveForm = NTX_WFM_MODE_GL16;
+                            break;
+                        // unsupported for now
+                        case WaveForm_REAGL:
+                        case WaveForm_REAGLD:
+                        default:
+                            actualFullscreenWaveForm = NTX_WFM_MODE_GC16;
+                            break;
+                    }
+
+                    uint32_t partialWaveform = fastPartialRefresh ? WAVEFORM_MODE_A2 : WAVEFORM_MODE_AUTO;
+                    uint32_t actualWaveform = isFullRefresh ? actualFullscreenWaveForm : partialWaveform;
+                    uint32_t updateMode = isFullRefresh ? UPDATE_MODE_FULL : UPDATE_MODE_PARTIAL;
                     uint32_t flags = dithering ? EPDC_FLAG_USE_DITHERING_Y4 : 0;
 
-                    refreshScreenRegion(fb, region, waveform_mode, update_mode, marker, flags);
+                    //                    qDebug() << "Refreshmode: " << fastPartialRefresh << isFullRefresh
+                    //                    << actualWaveform << r;
+                    refreshScreenRegion(fb, region, actualWaveform, updateMode, marker, flags);
 
-                    if (wait_completed)
+                    if (waitCompleted || isFullRefresh)
                         waitRefreshComplete(fb, marker);
                 }
                 else

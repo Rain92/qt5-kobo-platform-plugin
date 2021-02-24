@@ -6,7 +6,7 @@
 #include <QtGui/QGuiApplication>
 
 #include "kobodevicedescriptor.h"
-#include "partialrefreshmode.h"
+#include "refreshmode.h"
 
 class KoboPlatformFunctions
 {
@@ -48,15 +48,40 @@ public:
             func(val, temp);
     }
 
-    typedef void (*setPartialRefreshModeType)(PartialRefreshMode partial_refresh_mode);
+    typedef void (*setPartialRefreshModeType)(PartialRefreshMode partialRefreshMode);
     static QByteArray setPartialRefreshModeIdentifier() { return QByteArrayLiteral("setPartialRefreshMode"); }
 
-    static void setPartialRefreshMode(PartialRefreshMode partial_refresh_mode)
+    static void setPartialRefreshMode(PartialRefreshMode partialRefreshMode)
     {
         auto func = reinterpret_cast<setPartialRefreshModeType>(
             QGuiApplication::platformFunction(setPartialRefreshModeIdentifier()));
         if (func)
-            func(partial_refresh_mode);
+            func(partialRefreshMode);
+    }
+
+    typedef void (*setFullScreenRefreshModeType)(WaveForm waveform);
+    static QByteArray setFullScreenRefreshModeIdentifier()
+    {
+        return QByteArrayLiteral("setFullScreenRefreshMode");
+    }
+
+    static void setFullScreenRefreshMode(WaveForm waveform)
+    {
+        auto func = reinterpret_cast<setFullScreenRefreshModeType>(
+            QGuiApplication::platformFunction(setFullScreenRefreshModeIdentifier()));
+        if (func)
+            func(waveform);
+    }
+
+    typedef void (*clearScreenType)(bool waitForCompleted);
+    static QByteArray clearScreenIdentifier() { return QByteArrayLiteral("clearScreen"); }
+
+    static void clearScreen(bool waitForCompleted)
+    {
+        auto func =
+            reinterpret_cast<clearScreenType>(QGuiApplication::platformFunction(clearScreenIdentifier()));
+        if (func)
+            func(waitForCompleted);
     }
 
     typedef void (*enableDitheringType)(bool dithering);

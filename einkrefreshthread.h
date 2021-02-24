@@ -9,20 +9,24 @@
 #include <QWaitCondition>
 
 #include "eink.h"
-#include "partialrefreshmode.h"
+#include "refreshmode.h"
 
 class EinkrefreshThread : public QThread
 {
 public:
     EinkrefreshThread();
-    EinkrefreshThread(int fb, int width, int height, int marker, bool wait_completed,
-                      PartialRefreshMode partial_refresh_mode, bool dithering);
+    EinkrefreshThread(int fb, QRect screenRect, int marker, bool waitCompleted,
+                      PartialRefreshMode partialRefreshMode, WaveForm fullscreenWaveForm, bool dithering);
     ~EinkrefreshThread();
 
-    void initialize(int fb, int width, int height, int marker, bool wait_completed,
-                    PartialRefreshMode partial_refresh_mode, bool dithering);
+    void initialize(int fb, QRect screenRect, int marker, bool waitCompleted,
+                    PartialRefreshMode partialRefreshMode, WaveForm fullscreenWaveForm, bool dithering);
 
-    void setPartialRefreshMode(PartialRefreshMode partial_refresh_mode);
+    void setPartialRefreshMode(PartialRefreshMode partialRefreshMode);
+
+    void setFullScreenRefreshMode(WaveForm waveform);
+    void clearScreen(bool waitForCompleted);
+
     void enableDithering(bool dithering);
 
     void refresh(const QRect& r);
@@ -32,18 +36,18 @@ protected:
     virtual void run();
 
 private:
-    QWaitCondition waitcondition;
+    QWaitCondition waitCondition;
     QQueue<QRect> queue;
-    QMutex mutex_waitcondition;
-    QMutex mutex_queue;
+    QMutex mutexWaitCondition;
+    QMutex mutexQueue;
 
-    char exit_flag;
+    char exitFlag;
     int fb;
-    int width;
-    int height;
+    QRect screenRect;
     unsigned int marker;
-    bool wait_completed;
-    PartialRefreshMode partial_refresh_mode;
+    bool waitCompleted;
+    PartialRefreshMode partialRefreshMode;
+    WaveForm fullscreenWaveForm;
     bool dithering;
 };
 

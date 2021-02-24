@@ -41,12 +41,12 @@ HEADERS = devicehandlerlist_p.h \
           koboplatformintegration.h \
           kobowifimanager.h \
           mxcfb-kobo.h \
-          partialrefreshmode.h \
           qevdevtouchfilter_p.h \
           qevdevtouchhandler_p.h \
           qevdevtouchmanager_p.h \
           qevdevutil_p.h \
-          qtouchoutputmapping_p.h
+          qtouchoutputmapping_p.h \
+          refreshmode.h
 
 
 OTHER_FILES += \
