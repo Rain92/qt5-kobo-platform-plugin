@@ -166,6 +166,10 @@ void KoboPlatformIntegration::createInputHandlers()
 
     koboKeyboard = new KoboButtonIntegration(this, "/dev/input/event0", debug);
     koboAdditions = new KoboPlatformAdditions(this, koboDevice);
+
+    if (debug)
+        qDebug() << "device:" << koboDevice.device_code_name << koboDevice.model_number << '\n'
+                 << "screen:" << koboDevice.width << koboDevice.height << "dpi:" << koboDevice.dpi;
 }
 
 QPlatformNativeInterface *KoboPlatformIntegration::nativeInterface() const
