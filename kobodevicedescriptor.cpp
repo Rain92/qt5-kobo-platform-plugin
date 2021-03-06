@@ -27,7 +27,7 @@ KoboDeviceDescriptor determineDevice()
     int rotation = 90;
     bool invx = false, invy = false;
 
-    int class1 = 90;
+    int class1 = 270;
     int class2 = 90;
 
     if (deviceName == "alyssum")
