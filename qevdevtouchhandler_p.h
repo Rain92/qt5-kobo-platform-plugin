@@ -52,13 +52,15 @@
 // We mean it.
 //
 
+#include <QtCore/private/qthread_p.h>
 #include <QtGui/private/qtguiglobal_p.h>
+#include <qpa/qwindowsysteminterface.h>
+
+#include <QList>
 #include <QObject>
 #include <QString>
-#include <QList>
 #include <QThread>
-#include <QtCore/private/qthread_p.h>
-#include <qpa/qwindowsysteminterface.h>
+
 #include "qevdevtouchfilter_p.h"
 
 #if QT_CONFIG(mtdev)
@@ -75,7 +77,8 @@ class QEvdevTouchScreenHandler : public QObject
     Q_OBJECT
 
 public:
-    explicit QEvdevTouchScreenHandler(const QString &device, const QString &spec = QString(), QObject *parent = nullptr);
+    explicit QEvdevTouchScreenHandler(const QString &device, const QString &spec = QString(),
+                                      QObject *parent = nullptr);
     ~QEvdevTouchScreenHandler();
 
     QTouchDevice *touchDevice() const;
@@ -107,7 +110,8 @@ class QEvdevTouchScreenHandlerThread : public QDaemonThread
 {
     Q_OBJECT
 public:
-    explicit QEvdevTouchScreenHandlerThread(const QString &device, const QString &spec, QObject *parent = nullptr);
+    explicit QEvdevTouchScreenHandlerThread(const QString &device, const QString &spec,
+                                            QObject *parent = nullptr);
     ~QEvdevTouchScreenHandlerThread();
     void run() override;
 
@@ -134,7 +138,8 @@ private:
     bool m_touchUpdatePending;
     QWindow *m_filterWindow;
 
-    struct FilteredTouchPoint {
+    struct FilteredTouchPoint
+    {
         QEvdevTouchFilter x;
         QEvdevTouchFilter y;
         QWindowSystemInterface::TouchPoint touchPoint;
@@ -146,4 +151,4 @@ private:
 
 QT_END_NAMESPACE
 
-#endif // QEVDEVTOUCH_P_H
+#endif  // QEVDEVTOUCH_P_H

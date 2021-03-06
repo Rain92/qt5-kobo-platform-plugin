@@ -138,6 +138,7 @@ public:
     void loadMultiScreenMappings();
 
     QRect screenGeometry() const;
+    void setScreenGeometry(QRect rect);
 
     int hw_range_x_min;
     int hw_range_x_max;
@@ -153,6 +154,7 @@ public:
     bool m_singleTouch;
     QString m_screenName;
     mutable QPointer<QScreen> m_screen;
+    QRect m_screenGeometry;
 
     // Touch filtering and prediction are part of the same thing. The default
     // prediction is 0ms, but sensible results can be achieved by setting it
@@ -224,6 +226,9 @@ QEvdevTouchScreenHandler::QEvdevTouchScreenHandler(const QString &device, const 
     int rotationAngle = 0;
     bool invertx = false;
     bool inverty = false;
+    int hw_range_x_max_overwrite = 0;
+    int hw_range_y_max_overwrite = 0;
+    QRect screenRect;
     for (int i = 0; i < args.count(); ++i)
     {
         if (args.at(i).startsWith(QLatin1String("rotate")))
@@ -242,6 +247,46 @@ QEvdevTouchScreenHandler::QEvdevTouchScreenHandler(const QString &device, const 
                     default:
                         break;
                 }
+            }
+        }
+        else if (args.at(i).startsWith(QLatin1String("screenwidth")))
+        {
+            QString sArg = args.at(i).section(QLatin1Char('='), 1, 1);
+            bool ok;
+            uint argValue = sArg.toUInt(&ok);
+            if (ok)
+            {
+                screenRect.setWidth(argValue);
+            }
+        }
+        else if (args.at(i).startsWith(QLatin1String("screenheight")))
+        {
+            QString sArg = args.at(i).section(QLatin1Char('='), 1, 1);
+            bool ok;
+            uint argValue = sArg.toUInt(&ok);
+            if (ok)
+            {
+                screenRect.setHeight(argValue);
+            }
+        }
+        else if (args.at(i).startsWith(QLatin1String("hw_range_x_max")))
+        {
+            QString sArg = args.at(i).section(QLatin1Char('='), 1, 1);
+            bool ok;
+            uint argValue = sArg.toUInt(&ok);
+            if (ok)
+            {
+                hw_range_x_max_overwrite = argValue;
+            }
+        }
+        else if (args.at(i).startsWith(QLatin1String("hw_range_y_max")))
+        {
+            QString sArg = args.at(i).section(QLatin1Char('='), 1, 1);
+            bool ok;
+            uint argValue = sArg.toUInt(&ok);
+            if (ok)
+            {
+                hw_range_y_max_overwrite = argValue;
             }
         }
         else if (args.at(i) == QLatin1String("invertx"))
@@ -281,6 +326,7 @@ QEvdevTouchScreenHandler::QEvdevTouchScreenHandler(const QString &device, const 
 #endif
 
     d = new QEvdevTouchScreenData(this, args);
+    d->setScreenGeometry(screenRect);
 
 #if QT_CONFIG(mtdev)
     const char *mtdevStr = "(mtdev)";
@@ -311,7 +357,8 @@ QEvdevTouchScreenHandler::QEvdevTouchScreenHandler(const QString &device, const 
         qCDebug(qLcEvdevTouch, "evdevtouch: %ls: min X: %d max X: %d", qUtf16Printable(device),
                 absInfo.minimum, absInfo.maximum);
         d->hw_range_x_min = absInfo.minimum;
-        d->hw_range_x_max = absInfo.maximum;
+        d->hw_range_x_max = hw_range_x_max_overwrite > 0 ? hw_range_x_max_overwrite : absInfo.maximum;
+        qDebug() << "overwriting touch x max: " << hw_range_x_max_overwrite;
         has_x_range = true;
     }
 
@@ -320,7 +367,8 @@ QEvdevTouchScreenHandler::QEvdevTouchScreenHandler(const QString &device, const 
         qCDebug(qLcEvdevTouch, "evdevtouch: %ls: min Y: %d max Y: %d", qUtf16Printable(device),
                 absInfo.minimum, absInfo.maximum);
         d->hw_range_y_min = absInfo.minimum;
-        d->hw_range_y_max = absInfo.maximum;
+        d->hw_range_y_max = hw_range_y_max_overwrite > 0 ? hw_range_y_max_overwrite : absInfo.maximum;
+        qDebug() << "overwriting touch y max: " << hw_range_x_max_overwrite;
         has_y_range = true;
     }
 
@@ -826,6 +874,7 @@ void QEvdevTouchScreenData::assignIds()
 
 QRect QEvdevTouchScreenData::screenGeometry() const
 {
+    //    return m_screenGeometry;
     if (m_forceToActiveWindow)
     {
         QWindow *win = QGuiApplication::focusWindow();
@@ -861,6 +910,11 @@ QRect QEvdevTouchScreenData::screenGeometry() const
             screen = m_screen;
     }
     return QHighDpi::toNativePixels(screen->geometry(), screen);
+}
+
+void QEvdevTouchScreenData::setScreenGeometry(QRect rect)
+{
+    m_screenGeometry = rect;
 }
 
 void QEvdevTouchScreenData::reportPoints()

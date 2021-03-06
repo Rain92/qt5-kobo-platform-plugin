@@ -53,8 +53,9 @@
 
 #include <devicehandlerlist_p.h>
 
-#include <QObject>
 #include <QHash>
+#include <QObject>
+#include <QRect>
 #include <QSocketNotifier>
 
 QT_BEGIN_NAMESPACE
@@ -80,4 +81,4 @@ private:
 
 QT_END_NAMESPACE
 
-#endif // QEVDEVTOUCHMANAGER_P_H
+#endif  // QEVDEVTOUCHMANAGER_P_H

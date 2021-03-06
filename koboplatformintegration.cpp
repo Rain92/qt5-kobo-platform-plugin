@@ -162,6 +162,9 @@ void KoboPlatformIntegration::createInputHandlers()
     if (touchRangeY > 0)
         evdevTouchArgs += QString(":hw_range_y_max=%1").arg(touchRangeY);
 
+    evdevTouchArgs += QString(":screenwidth=%1").arg(koboDevice.width);
+    evdevTouchArgs += QString(":screenheight=%1").arg(koboDevice.height);
+    qDebug() << evdevTouchArgs;
     new QEvdevTouchManager("EvdevTouch", evdevTouchArgs, this);
 
     koboKeyboard = new KoboButtonIntegration(this, "/dev/input/event0", debug);
