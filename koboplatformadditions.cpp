@@ -84,7 +84,8 @@ int KoboPlatformAdditions::getBatteryLevel() const
 
 bool KoboPlatformAdditions::isBatteryCharging() const
 {
-    return str_from_file("/sys/devices/platform/pmic_battery.1/power_supply/mc13892_bat/status") == "Charging";
+    return str_from_file("/sys/devices/platform/pmic_battery.1/power_supply/mc13892_bat/status") ==
+           "Charging";
 }
 
 bool KoboPlatformAdditions::isUsbConnected() const
@@ -143,11 +144,11 @@ void KoboPlatformAdditions::setNaturalBrightness(int brig, int temp)
             fWhite = "/sys/class/backlight/lm3630a_ledb";
             fRed = "/sys/class/backlight/lm3630a_leda";
             break;
-       default:
+        default:
             break;
     }
 
-    if (KoboForma == device.device || KoboClaraHD == device.device)
+    if (KoboForma == device.device || KoboClaraHD == device.device || KoboLibra == device.device)
     {
         if (fWhite != NULL)
             write_light_value(fWhite, brig);
@@ -166,9 +167,10 @@ void KoboPlatformAdditions::setNaturalBrightness(int brig, int temp)
         double red = 0.0, green = 0.0, white = 0.0;
         if (brig > 0)
         {
-            white = std::min(
-                white_gain * pow(brig, exponent) * pow(device.frontlightMaxTemp - temp, exponent) + white_offset,
-                255.0);
+            white =
+                std::min(white_gain * pow(brig, exponent) * pow(device.frontlightMaxTemp - temp, exponent) +
+                             white_offset,
+                         255.0);
         }
         if (temp > 0)
         {

@@ -27,7 +27,7 @@ KoboDeviceDescriptor determineDevice()
     int rotation = 90;
     bool invx = false, invy = false;
 
-    int class1 = 270;
+    int class1 = 90;
     int class2 = 90;
 
     if (deviceName == "alyssum")
@@ -94,19 +94,19 @@ KoboDeviceDescriptor determineDevice()
     {
         device = KoboClaraHD;
         dpi = 300;
-        rotation = class1;
+        rotation = 270;
     }
     else if (deviceName == "frost")
     {
         device = KoboForma;
         dpi = 300;
-        rotation = class1;
+        rotation = 270;
     }
     else if (deviceName == "storm")
     {
         device = KoboLibra;
         dpi = 300;
-        rotation = 270;
+        rotation = 90;
     }
 
     else if (deviceName == "snow")
