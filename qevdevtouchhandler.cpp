@@ -899,6 +899,9 @@ void QEvdevTouchScreenData::reportPoints()
 
         if (Q_UNLIKELY(qLcEvents().isDebugEnabled()))
             qCDebug(qLcEvents) << "reporting" << tp;
+
+        qCDebug(qLcEvdevTouch) << "Screen rect:" << winRect;
+        qCDebug(qLcEvdevTouch) << "Registering touch point:" << tp;
     }
 
     // Let qguiapp pick the target window.
