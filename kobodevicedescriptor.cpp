@@ -28,7 +28,7 @@ KoboDeviceDescriptor determineDevice()
     bool invx = false, invy = false;
 
     int class1 = 90;
-    int class2 = 270;
+    int class2 = 90;
 
     if (deviceName == "alyssum")
     {

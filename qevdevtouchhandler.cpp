@@ -358,7 +358,7 @@ QEvdevTouchScreenHandler::QEvdevTouchScreenHandler(const QString &device, const 
                 absInfo.minimum, absInfo.maximum);
         d->hw_range_x_min = absInfo.minimum;
         d->hw_range_x_max = hw_range_x_max_overwrite > 0 ? hw_range_x_max_overwrite : absInfo.maximum;
-        qDebug() << "overwriting touch x max: " << hw_range_x_max_overwrite;
+        qCDebug(qLcEvdevTouch, "evdevtouch: overwriting touch x max: %d", hw_range_x_max_overwrite);
         has_x_range = true;
     }
 
@@ -368,7 +368,7 @@ QEvdevTouchScreenHandler::QEvdevTouchScreenHandler(const QString &device, const 
                 absInfo.minimum, absInfo.maximum);
         d->hw_range_y_min = absInfo.minimum;
         d->hw_range_y_max = hw_range_y_max_overwrite > 0 ? hw_range_y_max_overwrite : absInfo.maximum;
-        qDebug() << "overwriting touch y max: " << hw_range_x_max_overwrite;
+        qCDebug(qLcEvdevTouch, "evdevtouch: overwriting touch y max: %d", hw_range_y_max_overwrite);
         has_y_range = true;
     }
 
