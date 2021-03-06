@@ -186,7 +186,7 @@ void EinkrefreshThread::run()
                     //                    << actualWaveform << r;
                     refreshScreenRegion(fb, region, actualWaveform, updateMode, marker, flags);
 
-                    if (waitCompleted || isFullRefresh)
+                    if (waitCompleted)
                         waitRefreshComplete(fb, marker);
                 }
                 else
