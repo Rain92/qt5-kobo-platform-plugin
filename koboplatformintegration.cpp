@@ -91,10 +91,9 @@ QPlatformServices *KoboPlatformIntegration::services() const
 
 void KoboPlatformIntegration::createInputHandlers()
 {
-    QString touchscreenDevice("/dev/input/event1");
-    QRegularExpression rotTouchRx("touchscreen_rotate=(.*)");
+    QString touchscreenDevice(koboDevice.touchDev);
     QRegularExpression touchDevRx("touchscreen_device=(.*)");
-    QRegularExpression touchDriverRx("touchscreen_driver=(.*)");
+    QRegularExpression touchSwapXYRx("touchscreen_swap_xy=(.*)");
     QRegularExpression touchInvXRx("touchscreen_invert_x=(.*)");
     QRegularExpression touchInvYRx("touchscreen_invert_y=(.*)");
     QRegularExpression touchRangeXRx("touchscreen_max_range_x=(.*)");
@@ -114,20 +113,17 @@ void KoboPlatformIntegration::createInputHandlers()
         QRegularExpressionMatch match;
         if (arg.contains(touchDevRx, &match))
             touchscreenDevice = match.captured(1);
-        if (arg.contains(rotTouchRx, &match))
+        if (arg.contains(touchSwapXYRx, &match) && match.captured(1).toInt() > 0)
         {
-            bool ok = false;
-            int rotation = match.captured(1).toInt(&ok);
-            if (ok)
-                koboDevice.touchscreenTransform.rotation = rotation;
+            koboDevice.touchscreenSettings.swapXY = true;
         }
         if (arg.contains(touchInvXRx, &match) && match.captured(1).toInt() > 0)
         {
-            koboDevice.touchscreenTransform.invertX = true;
+            koboDevice.touchscreenSettings.invertX = true;
         }
         if (arg.contains(touchInvYRx, &match) && match.captured(1).toInt() > 0)
         {
-            koboDevice.touchscreenTransform.invertY = true;
+            koboDevice.touchscreenSettings.invertY = true;
         }
         if (arg.contains(touchRangeXRx, &match))
         {
@@ -143,7 +139,7 @@ void KoboPlatformIntegration::createInputHandlers()
         }
     }
 
-    bool flipTouchscreenAxes = (koboDevice.touchscreenTransform.rotation / 90) % 2 == 1;
+    bool flipTouchscreenAxes = koboDevice.touchscreenSettings.swapXY;
     if (manualRangeFlip)
         flipTouchscreenAxes = !flipTouchscreenAxes;
     if (useHWScreenLimits && touchRangeX == 0)
@@ -151,11 +147,12 @@ void KoboPlatformIntegration::createInputHandlers()
     if (useHWScreenLimits && touchRangeY == 0)
         touchRangeY = flipTouchscreenAxes ? koboDevice.width : koboDevice.height;
 
-    QString evdevTouchArgs(
-        QString("%1:rotate=%2").arg(touchscreenDevice).arg(koboDevice.touchscreenTransform.rotation));
-    if (koboDevice.touchscreenTransform.invertX)
+    QString evdevTouchArgs(touchscreenDevice);
+    if (koboDevice.touchscreenSettings.swapXY)
+        evdevTouchArgs += ":swapxy";
+    if (koboDevice.touchscreenSettings.invertX)
         evdevTouchArgs += ":invertx";
-    if (koboDevice.touchscreenTransform.invertY)
+    if (koboDevice.touchscreenSettings.invertY)
         evdevTouchArgs += ":inverty";
     if (touchRangeX > 0)
         evdevTouchArgs += QString(":hw_range_x_max=%1").arg(touchRangeX);
@@ -166,11 +163,11 @@ void KoboPlatformIntegration::createInputHandlers()
     evdevTouchArgs += QString(":screenheight=%1").arg(koboDevice.height);
     new QEvdevTouchManager("EvdevTouch", evdevTouchArgs, this);
 
-    koboKeyboard = new KoboButtonIntegration(this, "/dev/input/event0", debug);
+    koboKeyboard = new KoboButtonIntegration(this, koboDevice.ntxDev, debug);
     koboAdditions = new KoboPlatformAdditions(this, koboDevice);
 
     if (debug)
-        qDebug() << "device:" << koboDevice.device_code_name << koboDevice.model_number << '\n'
+        qDebug() << "device:" << koboDevice.modelName << koboDevice.modelNumber << '\n'
                  << "screen:" << koboDevice.width << koboDevice.height << "dpi:" << koboDevice.dpi;
 }
 

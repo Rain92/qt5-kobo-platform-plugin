@@ -32,6 +32,7 @@ SOURCES = main.cpp \
 HEADERS = devicehandlerlist_p.h \
           einkrefreshthread.h \
           eink.h \
+          ion-kobo.h \
           kobobuttonintegration.h \
           kobodevicedescriptor.h \
           kobofbscreen.h \
@@ -46,7 +47,8 @@ HEADERS = devicehandlerlist_p.h \
           qevdevtouchmanager_p.h \
           qevdevutil_p.h \
           qtouchoutputmapping_p.h \
-          refreshmode.h
+          refreshmode.h \
+          sunxi-kobo.h
 
 
 OTHER_FILES += \

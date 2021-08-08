@@ -13,10 +13,10 @@
 #define OFF 0
 #define ON 1
 
-KoboButtonIntegration::KoboButtonIntegration(QObject *parent, const char *inputDevice, bool debug)
+KoboButtonIntegration::KoboButtonIntegration(QObject *parent, const QString &inputDevice, bool debug)
     : QObject(parent), debug(debug), isInputCaptured(false)
 {
-    inputHandle = open(inputDevice, O_RDONLY);
+    inputHandle = open(inputDevice.toStdString().c_str(), O_RDONLY);
 
     socketNotifier = new QSocketNotifier(inputHandle, QSocketNotifier::Read);
 
@@ -71,34 +71,12 @@ void KoboButtonIntegration::activity(int)
     input_event in;
     read(inputHandle, &in, sizeof(input_event));
 
-    int code = Qt::Key_unknown;
+    KoboKey code;
 
-    switch (in.code)
+    if (KoboPhysicalKeyMap.contains(in.code))
     {
-        case KEY_POWER:
-            code = KoboKey::Key_Power;
-            break;
-        case KEY_LIGHT:
-            code = KoboKey::Key_Light;
-            break;
-        case KEY_HOME:
-            code = KoboKey::Key_Home;
-            break;
-        case KEY_SLEEP_COVER:
-            code = KoboKey::Key_SleepCover;
-            break;
-        case KEY_PAGE_UP:
-            code = KoboKey::Key_PagePackward;
-            break;
-        case KEY_PAGE_DOWN:
-            code = KoboKey::Key_PageForward;
-            break;
-        default:
-            break;
-    }
+        code = KoboPhysicalKeyMap[in.code];
 
-    if (code != Qt::Key_unknown)
-    {
         QEvent::Type eventType = in.value == EVENT_PRESS ? QEvent::KeyPress : QEvent::KeyRelease;
 
         QKeyEvent keyEvent(eventType, code, Qt::NoModifier);

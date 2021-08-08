@@ -1,5 +1,227 @@
 #include "kobodevicedescriptor.h"
 
+#include <fcntl.h>
+#include <linux/fb.h>
+#include <private/qcore_unix_p.h>  // overrides QT_OPEN
+#include <sys/ioctl.h>
+#include <unistd.h>
+
+// Kobo Touch:
+KoboDeviceDescriptor KoboTrilogy = {
+    .device = KoboTouch,
+    .hasKeys = true,
+    .touchscreenSettings{.swapXY = false, .hasMultitouch = false},
+    .frontlightSettings = {.hasFrontLight = false},
+};
+
+// Kobo Mini:
+KoboDeviceDescriptor KoboPixie = {
+    .device = KoboMini,
+    .dpi = 200,
+    // bezel:
+    .viewport = {QPoint(0, 2), QSize(596, 794)},
+    .touchscreenSettings{.hasMultitouch = false},
+    .frontlightSettings = {.hasFrontLight = false},
+};
+
+// Kobo Aura One:
+KoboDeviceDescriptor KoboDaylight = {
+    .device = KoboAuraOne,
+    .dpi = 300,
+    .frontlightSettings = {.hasNaturalLight = true,
+                           .frontlightDevWhite = "/sys/class/backlight/lm3630a_led1b",
+                           .frontlightDevRed = "/sys/class/backlight/lm3630a_led1a",
+                           .frontlightDevGreen = "/sys/class/backlight/lm3630a_ledb"},
+};
+
+// Kobo Aura H2O:
+KoboDeviceDescriptor KoboDahlia = {
+    .device = KoboAuraH2O,
+    .dpi = 265,
+    // the bezel covers the top 11 pixels:
+    .viewport = {QPoint(0, 11), QSize(1080, 1429)},
+};
+
+// Kobo Aura HD:
+KoboDeviceDescriptor KoboDragon = {
+    .device = KoboAuraHD,
+    .dpi = 265,
+    .touchscreenSettings{.hasMultitouch = false},
+};
+
+// Kobo Glo:
+KoboDeviceDescriptor KoboKraken = {
+    .device = KoboGlo,
+    .dpi = 212,
+    .touchscreenSettings{.hasMultitouch = false},
+};
+
+// Kobo Aura:
+KoboDeviceDescriptor KoboPhoenix = {
+    .device = KoboAura,
+    .dpi = 212,
+    // The bezel covers 10 pixels at the bottom:
+    .viewport = {QPoint(0, 0), QSize(758, 1014)},
+    // NOTE: AFAICT, the Aura was the only one explicitly requiring REAGL requests...
+    .isREAGL = true,
+};
+
+// Kobo Aura H2O2:
+KoboDeviceDescriptor KoboSnow = {
+    .device = KoboAuraH2O2_v1,
+    .dpi = 265,
+    .touchscreenSettings = {.invertX = false},
+    .frontlightSettings =
+        {
+            .hasNaturalLight = true,
+            .frontlightDevWhite = "/sys/class/backlight/lm3630a_ledb",
+            .frontlightDevRed = "/sys/class/backlight/lm3630a_led",
+            .frontlightDevGreen = "/sys/class/backlight/lm3630a_leda",
+        },
+};
+
+// Kobo Aura H2O2, Rev2:
+//- @fixme Check if the Clara fix actually helps here... (#4015)
+KoboDeviceDescriptor KoboSnowRev2 = {
+    .device = KoboAuraH2O2_v2,
+    .dpi = 265,
+    .isMk7 = true,
+    .frontlightSettings =
+        {
+            .hasNaturalLight = true,
+            .frontlightDevWhite = "/sys/class/backlight/lm3630a_ledb",
+            .frontlightDevRed = "/sys/class/backlight/lm3630a_leda",
+        },
+};
+
+// Kobo Aura second edition:
+KoboDeviceDescriptor KoboStar = {
+    .device = KoboAura2,
+    .dpi = 212,
+};
+
+// Kobo Aura second edition, Rev 2:
+KoboDeviceDescriptor KoboStarRev2 = {
+    .device = KoboAura2_v2,
+    .dpi = 212,
+    .isMk7 = true,
+};
+
+// Kobo Glo HD:
+KoboDeviceDescriptor KoboAlyssum = {
+    .device = KoboGloHD,
+    .dpi = 300,
+};
+
+// Kobo Touch 2.0:
+KoboDeviceDescriptor KoboPika = {
+    .device = KoboTouch2,
+    .dpi = 167,
+    .frontlightSettings = {.hasFrontLight = false},
+
+};
+
+// Kobo Clara HD:
+KoboDeviceDescriptor KoboNova = {
+    .device = KoboClaraHD,
+    .dpi = 300,
+    .canToggleChargingLED = true,
+    .isMk7 = true,
+    .frontlightSettings =
+        {
+            .hasNaturalLight = true,
+            .hasNaturalLightMixer = true,
+            .naturalLightInverted = true,
+            .naturalLightMin = 0,
+            .naturalLightMax = 10,
+            .frontlightDevWhite = "/sys/class/backlight/mxc_msp430.0/brightness",
+            .frontlightDevMixer = "/sys/class/backlight/lm3630a_led/color",
+        },
+};
+
+// Kobo Forma:
+// NOTE: Right now, we enforce Portrait orientation on startup to avoid getting touch coordinates wrong,
+//       no matter the rotation we were started from (c.f., platform/kobo/koreader.sh).
+// NOTE: For the FL, assume brightness is WO, and actual_brightness is RO!
+//       i.e., we could have a real KoboPowerD:frontlightIntensityHW() by reading actual_brightness ;).
+// NOTE: Rotation events *may* not be enabled if Nickel has never been brought up in that power cycle.
+//       i.e., this will affect KSM users.
+//       c.f., https://github.com/koreader/koreader/pull/4414#issuecomment-449652335
+//       There's also a CM_ROTARY_ENABLE command, but which seems to do as much nothing as the STATUS one...
+KoboDeviceDescriptor KoboFrost = {
+    .device = KoboForma,
+    .dpi = 300,
+    .hasKeys = true,
+    .canToggleChargingLED = true,
+    .isMk7 = true,
+    .hasGSensor = true,
+    .frontlightSettings =
+        {
+            .hasNaturalLight = true,
+            .hasNaturalLightMixer = true,
+            // Warmth goes from 0 to 10 on the .device's side (our own internal scale is still normalized
+            // to [0...100]) NOTE: Those three extra keys are *MANDATORY* if .frontlightDevMixer is set!
+            .naturalLightInverted = true,
+            .naturalLightMin = 0,
+            .naturalLightMax = 10,
+            .frontlightDevWhite = "/sys/class/backlight/mxc_msp430.0/brightness",
+            .frontlightDevMixer = "/sys/class/backlight/tlc5947_bl/color",
+        },
+};
+
+// Kobo Libra:
+// NOTE: Assume the same quirks as the Forma apply.
+KoboDeviceDescriptor KoboStorm = {
+    .device = KoboLibra,
+    .dpi = 300,
+    .hasKeys = true,
+    .canToggleChargingLED = true,
+    .isMk7 = true,
+    .hasGSensor = true,
+    .frontlightSettings =
+        {
+            .hasNaturalLight = true,
+            .hasNaturalLightMixer = true,
+            // Warmth goes from 0 to 10 on the .device's side (our own internal scale is still normalized
+            // to [0...100]) NOTE: Those three extra keys are *MANDATORY* if .frontlightDevMixer is set!
+            .naturalLightInverted = true,
+            .naturalLightMin = 0,
+            .naturalLightMax = 10,
+            .frontlightDevWhite = "/sys/class/backlight/mxc_msp430.0/brightness",
+            .frontlightDevMixer = "/sys/class/backlight/lm3630a_led/color",
+        },
+    // NOTE: The Libra apparently suffers from a mysterious issue where completely innocuous
+    // WAIT_FOR_UPDATE_COMPLETE ioctls
+    //       will mysteriously fail with a timeout (5s)...
+    //       This obviously leads to *terrible* user experience, so, until more is understood avout the
+    //       issue, bypass this ioctl on this .device. c.f.,
+    //       https://github.com/koreader/koreader/issues/7340
+    .hasReliableMxcWaitFor = false,
+};
+
+// Kobo Nia:
+//- @fixme: Untested, assume it's Clara-ish for now.
+KoboDeviceDescriptor KoboLuna = {
+    .device = KoboNia,
+    .dpi = 212,
+    .canToggleChargingLED = true,
+    .isMk7 = true,
+};
+
+// Kobo Elipsa
+KoboDeviceDescriptor KoboEuropa = {
+    .device = KoboElypsa,
+    .dpi = 227,
+    .canToggleChargingLED = true,
+    .hasGSensor = true,
+    .isSunxi = true,
+    .bootRotation = -1,
+    .batterySysfs = "/sys/class/power_supply/battery",
+    .ntxDev = "/dev/input/by-path/platform-ntx_event0-event",
+    .touchDev = "/dev/input/by-path/platform-0-0010-event",
+    .pressureEvent = "C.ABS_MT_PRESSURE",
+};
+
 static QString exec(const char *cmd)
 {
     std::array<char, 128> buffer;
@@ -16,121 +238,166 @@ static QString exec(const char *cmd)
     return result.trimmed();
 }
 
+static QRect determineGeometry(const fb_var_screeninfo &vinfo)
+{
+    int xoff = vinfo.xoffset;
+    int yoff = vinfo.yoffset;
+    int w = vinfo.xres;
+    int h = vinfo.yres;
+    return QRect(xoff, yoff, w, h);
+}
+
+static QSizeF determinePhysicalSize(const fb_var_screeninfo &vinfo, const QSize &res, int dpi = 300)
+{
+    int mmWidth = 0, mmHeight = 0;
+
+    if (vinfo.width != 0 && vinfo.height != 0 && vinfo.width != UINT_MAX && vinfo.height != UINT_MAX)
+    {
+        mmWidth = vinfo.width;
+        mmHeight = vinfo.height;
+    }
+    else
+    {
+        mmWidth = qRound(res.width() * 25.4 / dpi);
+        mmHeight = qRound(res.height() * 25.4 / dpi);
+    }
+
+    return QSize(mmWidth, mmHeight);
+}
+
 KoboDeviceDescriptor determineDevice()
 {
     auto deviceName = exec("/bin/kobo_config.sh 2>/dev/null");
     auto modelNumberStr = exec("cut -f 6 -d ',' /mnt/onboard/.kobo/version | sed -e 's/^[0-]*//'");
     int modelNumber = modelNumberStr.toInt();
 
-    KoboDevice device = KoboOther;
-    int dpi = 260;
-    int rotation = 90;
-    bool invx = false, invy = false;
-
-    int class1 = 90;
-    int class2 = 90;
+    KoboDeviceDescriptor device;
 
     if (deviceName == "alyssum")
     {
-        device = KoboGloHD;
-        dpi = 300;
-        rotation = 90;
+        device = KoboAlyssum;
     }
     else if (deviceName == "dahlia")
     {
-        device = KoboAuraH2O;
-        dpi = 265;
-        rotation = 90;
+        device = KoboDahlia;
     }
     else if (deviceName == "dragon")
     {
-        device = KoboAuraHD;
-        dpi = 265;
-        rotation = class2;
+        device = KoboDragon;
     }
     else if (deviceName == "phoenix")
     {
-        device = KoboAura;
-        dpi = 212;
-        rotation = class2;
+        device = KoboPhoenix;
     }
     else if (deviceName == "kraken")
     {
-        device = KoboGlo;
-        dpi = 213;
-        rotation = class2;
+        device = KoboKraken;
     }
     else if (deviceName == "trilogy")
     {
-        device = KoboTouch;
-        dpi = 167;
-        rotation = class2;
+        device = KoboTrilogy;
     }
     else if (deviceName == "pixie")
     {
-        device = KoboMini;
-        dpi = 200;
-        rotation = class2;
+        device = KoboPixie;
     }
     else if (deviceName == "pika")
     {
-        device = KoboTouch2;
-        dpi = 167;
-        rotation = 90;
+        device = KoboPika;
     }
     else if (deviceName == "daylight")
     {
-        device = KoboAuraOne;
-        dpi = 300;
-        rotation = 90;
+        device = KoboDaylight;
     }
     else if (deviceName == "star")
     {
-        device = KoboAura2;
-        dpi = 212;
-        rotation = 90;
+        if (modelNumber == 379)
+            device = KoboStarRev2;
+        else
+            device = KoboStar;
     }
     else if (deviceName == "nova")
     {
-        device = KoboClaraHD;
-        dpi = 300;
-        rotation = 270;
+        device = KoboNova;
     }
     else if (deviceName == "frost")
     {
-        device = KoboForma;
-        dpi = 300;
-        rotation = 270;
+        device = KoboFrost;
     }
     else if (deviceName == "storm")
     {
-        device = KoboLibra;
-        dpi = 300;
-        rotation = 90;
+        device = KoboStorm;
     }
-
     else if (deviceName == "snow")
     {
-        if (modelNumber == 374)
-            device = KoboAuraH2O2_v1;
-        else if (modelNumber == 378)
-            device = KoboAuraH2O2_v2;
-
-        rotation = class1;
-        dpi = 265;
+        if (modelNumber == 378)
+            device = KoboSnowRev2;
+        else  // if (modelNumber == 374)
+            device = KoboSnow;
+    }
+    else if (deviceName == "luna")
+    {
+        device = KoboLuna;
+    }
+    else if (deviceName == "europa")
+    {
+        device = KoboEuropa;
+    }
+    else
+    {
+        device = KoboEuropa;
     }
 
-    bool hasComfortlight = device == KoboAuraOne || device == KoboAuraH2O2_v1 || device == KoboAuraH2O2_v2 ||
-                           device == KoboClaraHD || device == KoboForma || device == KoboLibra;
+    QString fbDevice = QLatin1String("/dev/fb0");
+    if (!QFile::exists(fbDevice))
+        fbDevice = QLatin1String("/dev/graphics/fb0");
+    if (!QFile::exists(fbDevice))
+    {
+        qWarning("Unable to figure out framebuffer device. Specify it manually.");
+        //            return false;
+    }
 
-    int frontlightMaxLevel = 100;
-    int frontlightMaxTemp =
-        hasComfortlight ? (device == KoboClaraHD || device == KoboForma || device == KoboLibra ? 10 : 100)
-                        : 0;
+    int mFbFd = -1;
 
-    KoboDeviceDescriptor descriptor{
-        device,          deviceName,         modelNumber,      dpi, 0, 0, 0, 0, {rotation, invx, invy},
-        hasComfortlight, frontlightMaxLevel, frontlightMaxTemp};
+    if (access(fbDevice.toLatin1().constData(), R_OK | W_OK) == 0)
+        mFbFd = QT_OPEN(fbDevice.toLatin1().constData(), O_RDWR);
 
-    return descriptor;
+    if (mFbFd == -1)
+    {
+        if (access(fbDevice.toLatin1().constData(), R_OK) == 0)
+            mFbFd = QT_OPEN(fbDevice.toLatin1().constData(), O_RDONLY);
+    }
+
+    // Open the device
+    if (mFbFd == -1)
+    {
+        qErrnoWarning(errno, "Failed to open framebuffer %s", qPrintable(fbDevice));
+        //            return false;
+    }
+
+    fb_var_screeninfo vinfo;
+
+    if (ioctl(mFbFd, FBIOGET_VSCREENINFO, &vinfo))
+    {
+        qErrnoWarning(errno, "Error reading variable information");
+    }
+
+    QRect geometry = determineGeometry(vinfo);
+
+    auto mPhysicalSize = determinePhysicalSize(vinfo, geometry.size(), device.dpi);
+
+    device.width = geometry.width();
+    device.height = geometry.height();
+    device.physicalWidth = mPhysicalSize.width();
+    device.physicalHeight = mPhysicalSize.height();
+
+    if (device.viewport.isEmpty())
+        device.viewport = geometry;
+
+    device.modelName = deviceName;
+    device.modelNumber = modelNumber;
+
+    close(mFbFd);
+
+    return device;
 }

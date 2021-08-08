@@ -6,21 +6,7 @@
 #define TOLERANCE 80
 
 EinkrefreshThread::EinkrefreshThread()
-    : EinkrefreshThread(0, {}, 0, false, AccuratePartialRefresh, WaveForm_GC16, true)
-{
-}
-
-EinkrefreshThread::EinkrefreshThread(int fb, QRect screenRect, int marker, bool waitCompleted,
-                                     PartialRefreshMode partialRefreshMode, WaveForm fullscreenWaveForm,
-                                     bool dithering)
-    : exitFlag(0),
-      fb(fb),
-      screenRect(screenRect),
-      marker(marker),
-      waitCompleted(waitCompleted),
-      partialRefreshMode(partialRefreshMode),
-      fullscreenWaveForm(fullscreenWaveForm),
-      dithering(dithering)
+    : exitFlag(), fb(), screenRect(), marker(), waitCompleted(), partialRefreshMode(), dithering()
 {
 }
 
@@ -29,17 +15,36 @@ EinkrefreshThread::~EinkrefreshThread()
     doExit();
 }
 
-void EinkrefreshThread::initialize(int fb, QRect screenRect, int marker, bool waitCompleted,
-                                   PartialRefreshMode partialRefreshMode, WaveForm fullscreenWaveForm,
-                                   bool dithering)
+void EinkrefreshThread::initialize(int fb, KoboDeviceDescriptor* koboDevice, int marker, bool waitCompleted,
+                                   PartialRefreshMode partialRefreshMode, bool dithering)
 {
     this->fb = fb;
-    this->screenRect = screenRect;
+    this->screenRect = QRect(0, 0, koboDevice->width, koboDevice->height);
     this->marker = marker;
-    this->waitCompleted = waitCompleted;
     this->partialRefreshMode = partialRefreshMode;
-    this->fullscreenWaveForm = fullscreenWaveForm;
     this->dithering = dithering;
+
+    this->waveFormFullscreen = WaveForm_GC16;
+    this->waveFormPartial = WaveForm_AUTO;
+    this->waveFormFast = WaveForm_A2;
+
+    if (koboDevice->isREAGL)
+    {
+        this->waveFormPartial = WaveForm_REAGLD;
+        this->waveFormFast = WaveForm_DU;
+    }
+    else if (koboDevice->isMk7)
+    {
+        this->waveFormPartial = WaveForm_REAGL;
+        this->waveFormFast = WaveForm_DU;
+    }
+    else if (koboDevice->isSunxi)
+    {
+        this->waveFormPartial = WaveForm_REAGL;
+        this->waveFormFast = WaveForm_DU;
+    }
+
+    this->waitCompleted = waitCompleted && koboDevice->hasReliableMxcWaitFor;
 
     this->start();
 }
@@ -51,7 +56,7 @@ void EinkrefreshThread::setPartialRefreshMode(PartialRefreshMode partialRefreshM
 
 void EinkrefreshThread::setFullScreenRefreshMode(WaveForm waveform)
 {
-    this->fullscreenWaveForm = waveform;
+    this->waveFormFullscreen = waveform;
 }
 
 void EinkrefreshThread::clearScreen(bool waitForCompleted)
@@ -85,6 +90,9 @@ void EinkrefreshThread::enableDithering(bool dithering)
 
 void EinkrefreshThread::refresh(const QRect& r)
 {
+    if (r.width() == 0 || r.height() == 0)
+        return;
+
     mutexQueue.lock();
     for (int i = 0; i < queue.size(); i++)
     {
@@ -151,34 +159,8 @@ void EinkrefreshThread::run()
                     bool fastPartialRefresh = partialRefreshMode == FastPartialRefresh ||
                                               (partialRefreshMode == MixedPartialRefresh && isSmall);
 
-                    int actualFullscreenWaveForm;
-                    switch (fullscreenWaveForm)
-                    {
-                        case WaveForm_AUTO:
-                            actualFullscreenWaveForm = WAVEFORM_MODE_AUTO;
-                            break;
-                        case WaveForm_A2:
-                            actualFullscreenWaveForm = NTX_WFM_MODE_A2;
-                            break;
-                        case WaveForm_GC4:
-                            actualFullscreenWaveForm = NTX_WFM_MODE_GC4;
-                            break;
-                        case WaveForm_GC16:
-                            actualFullscreenWaveForm = NTX_WFM_MODE_GC16;
-                            break;
-                        case WaveForm_GL16:
-                            actualFullscreenWaveForm = NTX_WFM_MODE_GL16;
-                            break;
-                        // unsupported for now
-                        case WaveForm_REAGL:
-                        case WaveForm_REAGLD:
-                        default:
-                            actualFullscreenWaveForm = NTX_WFM_MODE_GC16;
-                            break;
-                    }
-
-                    uint32_t partialWaveform = fastPartialRefresh ? WAVEFORM_MODE_A2 : WAVEFORM_MODE_AUTO;
-                    uint32_t actualWaveform = isFullRefresh ? actualFullscreenWaveForm : partialWaveform;
+                    uint32_t partialWaveform = fastPartialRefresh ? waveFormFast : waveFormPartial;
+                    uint32_t actualWaveform = isFullRefresh ? waveFormFullscreen : partialWaveform;
                     uint32_t updateMode = isFullRefresh ? UPDATE_MODE_FULL : UPDATE_MODE_PARTIAL;
                     uint32_t flags = dithering ? EPDC_FLAG_USE_DITHERING_Y4 : 0;
 

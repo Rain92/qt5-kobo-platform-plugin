@@ -9,6 +9,7 @@
 #include <QWaitCondition>
 
 #include "eink.h"
+#include "kobodevicedescriptor.h"
 #include "refreshmode.h"
 
 class EinkrefreshThread : public QThread
@@ -19,8 +20,8 @@ public:
                       PartialRefreshMode partialRefreshMode, WaveForm fullscreenWaveForm, bool dithering);
     ~EinkrefreshThread();
 
-    void initialize(int fb, QRect screenRect, int marker, bool waitCompleted,
-                    PartialRefreshMode partialRefreshMode, WaveForm fullscreenWaveForm, bool dithering);
+    void initialize(int fb, KoboDeviceDescriptor* koboDevice, int marker, bool waitCompleted,
+                    PartialRefreshMode partialRefreshMode, bool dithering);
 
     void setPartialRefreshMode(PartialRefreshMode partialRefreshMode);
 
@@ -47,7 +48,9 @@ private:
     unsigned int marker;
     bool waitCompleted;
     PartialRefreshMode partialRefreshMode;
-    WaveForm fullscreenWaveForm;
+    WaveForm waveFormFullscreen;
+    WaveForm waveFormPartial;
+    WaveForm waveFormFast;
     bool dithering;
 };
 

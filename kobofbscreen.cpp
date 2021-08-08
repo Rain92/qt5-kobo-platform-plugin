@@ -63,84 +63,6 @@ static int determineDepth(const fb_var_screeninfo &vinfo)
     return depth;
 }
 
-static QRect determineGeometry(const fb_var_screeninfo &vinfo, const QRect &userGeometry)
-{
-    int xoff = vinfo.xoffset;
-    int yoff = vinfo.yoffset;
-    int w, h;
-    if (userGeometry.isValid())
-    {
-        w = userGeometry.width();
-        h = userGeometry.height();
-        if ((uint)w > vinfo.xres)
-            w = vinfo.xres;
-        if ((uint)h > vinfo.yres)
-            h = vinfo.yres;
-
-        int xxoff = userGeometry.x(), yyoff = userGeometry.y();
-        if (xxoff != 0 || yyoff != 0)
-        {
-            if (xxoff < 0 || xxoff + w > (int)(vinfo.xres))
-                xxoff = vinfo.xres - w;
-            if (yyoff < 0 || yyoff + h > (int)(vinfo.yres))
-                yyoff = vinfo.yres - h;
-            xoff += xxoff;
-            yoff += yyoff;
-        }
-        else
-        {
-            xoff += (vinfo.xres - w) / 2;
-            yoff += (vinfo.yres - h) / 2;
-        }
-    }
-    else
-    {
-        w = vinfo.xres;
-        h = vinfo.yres;
-    }
-
-    if (w == 0 || h == 0)
-    {
-        qWarning("Unable to find screen geometry, using 320x240");
-        w = 320;
-        h = 240;
-    }
-
-    return QRect(xoff, yoff, w, h);
-}
-
-static QSizeF determinePhysicalSize(const fb_var_screeninfo &vinfo, const QSize &mmSize, const QSize &res,
-                                    int dpi = 100)
-{
-    int mmWidth = mmSize.width(), mmHeight = mmSize.height();
-
-    if (mmWidth <= 0 && mmHeight <= 0)
-    {
-        if (vinfo.width != 0 && vinfo.height != 0 && vinfo.width != UINT_MAX && vinfo.height != UINT_MAX)
-        {
-            mmWidth = vinfo.width;
-            mmHeight = vinfo.height;
-        }
-        else
-        {
-            mmWidth = qRound(res.width() * 25.4 / dpi);
-            mmHeight = qRound(res.height() * 25.4 / dpi);
-        }
-    }
-    else if (mmWidth > 0 && mmHeight <= 0)
-    {
-        mmHeight = res.height() * mmWidth / res.width();
-    }
-    else if (mmHeight > 0 && mmWidth <= 0)
-    {
-        mmWidth = res.width() * mmHeight / res.height();
-    }
-
-    //    qDebug() << "Internal Size:" << mmWidth << mmHeight;
-
-    return QSize(mmWidth, mmHeight);
-}
-
 static QImage::Format determineFormat(const fb_var_screeninfo &info, int depth)
 {
     const fb_bitfield rgba[4] = {info.red, info.green, info.blue, info.transp};
@@ -386,15 +308,15 @@ bool KoboFbScreen::initialize()
 
     mDepth = determineDepth(vinfo);
     mBytesPerLine = finfo.line_length;
-    QRect geometry = determineGeometry(vinfo, userGeometry);
+
+    // viewport is unsupported for now
+    // Rect geometry = koboDevice->viewport;
+
+    QRect geometry = {0, 0, koboDevice->width, koboDevice->height};
     mGeometry = QRect(QPoint(0, 0), geometry.size());
     mFormat = determineFormat(vinfo, mDepth);
 
-    mPhysicalSize = determinePhysicalSize(vinfo, userMmSize, geometry.size(), koboDevice->dpi);
-    koboDevice->width = mGeometry.width();
-    koboDevice->height = mGeometry.height();
-    koboDevice->physicalWidth = mPhysicalSize.width();
-    koboDevice->physicalHeight = mPhysicalSize.height();
+    mPhysicalSize = QSizeF(koboDevice->physicalWidth, koboDevice->physicalHeight);
 
     // mmap the framebuffer
     mMmap.size = finfo.smem_len;
@@ -424,9 +346,8 @@ bool KoboFbScreen::initialize()
     int marker = getpid();
     bool wait_refresh_completed = koboDevice->device == KoboTouch;
 
-    refreshThread.initialize(mFbFd, {0, 0, mGeometry.width(), mGeometry.height()}, marker,
-                             wait_refresh_completed, PartialRefreshMode::MixedPartialRefresh, WaveForm_GC16,
-                             true);
+    refreshThread.initialize(mFbFd, koboDevice, marker, wait_refresh_completed,
+                             PartialRefreshMode::MixedPartialRefresh, true);
 
     if (logicalDpiTarget > 0)
     {

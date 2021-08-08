@@ -29,9 +29,9 @@ int int_from_file(const QString& fileName)
     return str_from_file(fileName).toInt();
 }
 
-static void write_light_value(const std::string& file, int value)
+static void write_light_value(const QString& file, int value)
 {
-    QFile f(file.c_str());
+    QFile f(file);
     if (f.open(QIODevice::WriteOnly))
     {
         f.write(QString::number(value).toLatin1());
@@ -40,7 +40,7 @@ static void write_light_value(const std::string& file, int value)
     }
 }
 
-static void set_light_value(const std::string& dir, int value)
+static void set_light_value(const QString& dir, int value)
 {
     write_light_value(dir + "/bl_power", value > 0 ? 31 : 0);
     write_light_value(dir + "/brightness", value);
@@ -79,13 +79,12 @@ KoboPlatformAdditions::KoboPlatformAdditions(QObject* parent, const KoboDeviceDe
 
 int KoboPlatformAdditions::getBatteryLevel() const
 {
-    return int_from_file("/sys/devices/platform/pmic_battery.1/power_supply/mc13892_bat/capacity");
+    return int_from_file(device.batterySysfs + "/capacity");
 }
 
 bool KoboPlatformAdditions::isBatteryCharging() const
 {
-    return str_from_file("/sys/devices/platform/pmic_battery.1/power_supply/mc13892_bat/status") ==
-           "Charging";
+    return str_from_file(device.batterySysfs + "/status") == "Charging";
 }
 
 bool KoboPlatformAdditions::isUsbConnected() const
@@ -100,9 +99,13 @@ void KoboPlatformAdditions::setStatusLedEnabled(bool enabled)
 
 void KoboPlatformAdditions::setFrontlightLevel(int val, int temp)
 {
-    val = qMax(0, qMin(val, device.frontlightMaxLevel));
-    temp = qMax(0, qMin(temp, device.frontlightMaxTemp));
-    if (device.hasComfortLight)
+    if (!device.frontlightSettings.hasFrontLight)
+        return;
+
+    val = qMax(device.frontlightSettings.frontlightMin, qMin(val, device.frontlightSettings.frontlightMax));
+    temp = qMax(device.frontlightSettings.naturalLightMin,
+                qMin(temp, device.frontlightSettings.naturalLightMax));
+    if (device.frontlightSettings.hasNaturalLight)
     {
         setNaturalBrightness(val, temp);
     }
@@ -114,45 +117,16 @@ void KoboPlatformAdditions::setFrontlightLevel(int val, int temp)
 
 void KoboPlatformAdditions::setNaturalBrightness(int brig, int temp)
 {
-    const char *fWhite = NULL, *fRed = NULL, *fGreen = NULL, *fMixer = NULL;
+    QString fWhite = device.frontlightSettings.frontlightDevWhite,
+            fRed = device.frontlightSettings.frontlightDevRed,
+            fGreen = device.frontlightSettings.frontlightDevGreen,
+            fMixer = device.frontlightSettings.frontlightDevMixer;
 
-    switch (device.device)
+    if (device.frontlightSettings.hasNaturalLightMixer)
     {
-        case KoboAuraOne:
-            fWhite = "/sys/class/backlight/lm3630a_led1b";
-            fRed = "/sys/class/backlight/lm3630a_led1a";
-            fGreen = "/sys/class/backlight/lm3630a_ledb";
-            break;
-        case KoboAuraH2O2_v1:
-            fWhite = "/sys/class/backlight/lm3630a_ledb";
-            fRed = "/sys/class/backlight/lm3630a_led";
-            fGreen = "/sys/class/backlight/lm3630a_leda";
-            break;
-        case KoboAuraH2O2_v2:
-            fWhite = "/sys/class/backlight/lm3630a_ledb";
-            fRed = "/sys/class/backlight/lm3630a_leda";
-            break;
-        case KoboClaraHD:
-            fWhite = "/sys/class/backlight/mxc_msp430.0/brightness";
-            fMixer = "/sys/class/backlight/lm3630a_led/color";
-            break;
-        case KoboForma:
-            fWhite = "/sys/class/backlight/mxc_msp430.0/brightness";
-            fMixer = "/sys/class/backlight/tlc5947_bl/color";
-            break;
-        case KoboLibra:
-            fWhite = "/sys/class/backlight/lm3630a_ledb";
-            fRed = "/sys/class/backlight/lm3630a_leda";
-            break;
-        default:
-            break;
-    }
-
-    if (KoboForma == device.device || KoboClaraHD == device.device || KoboLibra == device.device)
-    {
-        if (fWhite != NULL)
+        if (fWhite != "")
             write_light_value(fWhite, brig);
-        if (fMixer != NULL)
+        if (fMixer != "")
             write_light_value(fMixer, 10 - temp);
     }
     else
@@ -167,10 +141,10 @@ void KoboPlatformAdditions::setNaturalBrightness(int brig, int temp)
         double red = 0.0, green = 0.0, white = 0.0;
         if (brig > 0)
         {
-            white =
-                std::min(white_gain * pow(brig, exponent) * pow(device.frontlightMaxTemp - temp, exponent) +
-                             white_offset,
-                         255.0);
+            white = std::min(white_gain * pow(brig, exponent) *
+                                     pow(device.frontlightSettings.naturalLightMax - temp, exponent) +
+                                 white_offset,
+                             255.0);
         }
         if (temp > 0)
         {
@@ -181,11 +155,11 @@ void KoboPlatformAdditions::setNaturalBrightness(int brig, int temp)
         red = std::max(red, 0.0);
         green = std::max(green, 0.0);
 
-        if (fWhite != NULL)
+        if (fWhite != "")
             set_light_value(fWhite, floor(white));
-        if (fRed != NULL)
+        if (fRed != "")
             set_light_value(fRed, floor(red));
-        if (fGreen != NULL)
+        if (fGreen != "")
             set_light_value(fGreen, floor(green));
     }
 }

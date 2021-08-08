@@ -222,8 +222,10 @@ QEvdevTouchScreenHandler::QEvdevTouchScreenHandler(const QString &device, const 
 {
     setObjectName(QLatin1String("Evdev Touch Handler"));
 
+    qDebug() << spec;
+
     const QStringList args = spec.split(QLatin1Char(':'));
-    int rotationAngle = 0;
+    bool swapxy = false;
     bool invertx = false;
     bool inverty = false;
     int hw_range_x_max_overwrite = 0;
@@ -231,25 +233,7 @@ QEvdevTouchScreenHandler::QEvdevTouchScreenHandler(const QString &device, const 
     QRect screenRect;
     for (int i = 0; i < args.count(); ++i)
     {
-        if (args.at(i).startsWith(QLatin1String("rotate")))
-        {
-            QString rotateArg = args.at(i).section(QLatin1Char('='), 1, 1);
-            bool ok;
-            uint argValue = rotateArg.toUInt(&ok);
-            if (ok)
-            {
-                switch (argValue)
-                {
-                    case 90:
-                    case 180:
-                    case 270:
-                        rotationAngle = argValue;
-                    default:
-                        break;
-                }
-            }
-        }
-        else if (args.at(i).startsWith(QLatin1String("screenwidth")))
+        if (args.at(i).startsWith(QLatin1String("screenwidth")))
         {
             QString sArg = args.at(i).section(QLatin1Char('='), 1, 1);
             bool ok;
@@ -288,6 +272,10 @@ QEvdevTouchScreenHandler::QEvdevTouchScreenHandler(const QString &device, const 
             {
                 hw_range_y_max_overwrite = argValue;
             }
+        }
+        else if (args.at(i) == QLatin1String("swapxy"))
+        {
+            swapxy = true;
         }
         else if (args.at(i) == QLatin1String("invertx"))
         {
@@ -399,8 +387,8 @@ QEvdevTouchScreenHandler::QEvdevTouchScreenHandler(const QString &device, const 
     else
         qWarning("evdevtouch: The device is grabbed by another process. No events will be read.");
 
-    if (rotationAngle)
-        d->m_rotate = QTransform::fromTranslate(0.5, 0.5).rotate(rotationAngle).translate(-0.5, -0.5);
+    if (swapxy)
+        d->m_rotate *= QTransform::fromTranslate(0.5, 0.5).rotate(90).scale(1.0, -1.0).translate(-0.5, -0.5);
 
     if (invertx)
         d->m_rotate *= QTransform::fromTranslate(0.5, 0.5).scale(-1.0, 1.0).translate(-0.5, -0.5);

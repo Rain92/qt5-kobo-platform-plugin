@@ -18,7 +18,7 @@ class KoboButtonIntegration : public QObject
     Q_OBJECT
 
 public:
-    KoboButtonIntegration(QObject* parent = nullptr, const char* inputDevice = "/dev/input/event0",
+    KoboButtonIntegration(QObject* parent = nullptr, const QString& inputDevice = "/dev/input/event0",
                           bool debug = false);
     ~KoboButtonIntegration();
 
