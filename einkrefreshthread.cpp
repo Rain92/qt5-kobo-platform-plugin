@@ -33,7 +33,7 @@ void EinkrefreshThread::initialize(int fb, KoboDeviceDescriptor* koboDevice, int
         this->waveFormPartial = WaveForm_REAGLD;
         this->waveFormFast = WaveForm_DU;
     }
-    else if (koboDevice->isMk7)
+    else if (koboDevice->mark == 7)
     {
         this->waveFormPartial = WaveForm_REAGL;
         this->waveFormFast = WaveForm_DU;

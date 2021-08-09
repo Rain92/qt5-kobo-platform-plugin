@@ -344,7 +344,7 @@ bool KoboFbScreen::initialize()
     blankScreen(mFbFd, false);
 
     int marker = getpid();
-    bool wait_refresh_completed = koboDevice->device == KoboTouch;
+    bool wait_refresh_completed = false;
 
     refreshThread.initialize(mFbFd, koboDevice, marker, wait_refresh_completed,
                              PartialRefreshMode::MixedPartialRefresh, true);

@@ -6,9 +6,21 @@
 #include <sys/ioctl.h>
 #include <unistd.h>
 
-// Kobo Touch:
-KoboDeviceDescriptor KoboTrilogy = {
-    .device = KoboTouch,
+// Kobo Touch A/B:
+KoboDeviceDescriptor KoboTrilogyAB = {
+    .device = KoboTouchAB,
+    .mark = 3,
+    .dpi = 200,
+    .hasKeys = true,
+    .touchscreenSettings{.swapXY = false, .hasMultitouch = false},
+    .frontlightSettings = {.hasFrontLight = false},
+};
+
+// Kobo Touch C:
+KoboDeviceDescriptor KoboTrilogyC = {
+    .device = KoboTouchC,
+    .mark = 4,
+    .dpi = 200,
     .hasKeys = true,
     .touchscreenSettings{.swapXY = false, .hasMultitouch = false},
     .frontlightSettings = {.hasFrontLight = false},
@@ -17,58 +29,64 @@ KoboDeviceDescriptor KoboTrilogy = {
 // Kobo Mini:
 KoboDeviceDescriptor KoboPixie = {
     .device = KoboMini,
+    .mark = 4,
     .dpi = 200,
-    // bezel:
-    .viewport = {QPoint(0, 2), QSize(596, 794)},
     .touchscreenSettings{.hasMultitouch = false},
     .frontlightSettings = {.hasFrontLight = false},
-};
-
-// Kobo Aura One:
-KoboDeviceDescriptor KoboDaylight = {
-    .device = KoboAuraOne,
-    .dpi = 300,
-    .frontlightSettings = {.hasNaturalLight = true,
-                           .frontlightDevWhite = "/sys/class/backlight/lm3630a_led1b",
-                           .frontlightDevRed = "/sys/class/backlight/lm3630a_led1a",
-                           .frontlightDevGreen = "/sys/class/backlight/lm3630a_ledb"},
-};
-
-// Kobo Aura H2O:
-KoboDeviceDescriptor KoboDahlia = {
-    .device = KoboAuraH2O,
-    .dpi = 265,
-    // the bezel covers the top 11 pixels:
-    .viewport = {QPoint(0, 11), QSize(1080, 1429)},
-};
-
-// Kobo Aura HD:
-KoboDeviceDescriptor KoboDragon = {
-    .device = KoboAuraHD,
-    .dpi = 265,
-    .touchscreenSettings{.hasMultitouch = false},
 };
 
 // Kobo Glo:
 KoboDeviceDescriptor KoboKraken = {
     .device = KoboGlo,
+    .mark = 4,
     .dpi = 212,
     .touchscreenSettings{.hasMultitouch = false},
+};
+
+// Kobo Glo HD:
+KoboDeviceDescriptor KoboAlyssum = {
+    .device = KoboGloHD,
+    .mark = 6,
+    .dpi = 300,
+};
+
+// Kobo Touch 2.0:
+KoboDeviceDescriptor KoboPika = {
+    .device = KoboTouch2,
+    .mark = 6,
+    .dpi = 167,
+    .frontlightSettings = {.hasFrontLight = false},
+
 };
 
 // Kobo Aura:
 KoboDeviceDescriptor KoboPhoenix = {
     .device = KoboAura,
+    .mark = 5,
     .dpi = 212,
-    // The bezel covers 10 pixels at the bottom:
-    .viewport = {QPoint(0, 0), QSize(758, 1014)},
     // NOTE: AFAICT, the Aura was the only one explicitly requiring REAGL requests...
     .isREAGL = true,
+};
+
+// Kobo Aura HD:
+KoboDeviceDescriptor KoboDragon = {
+    .device = KoboAuraHD,
+    .mark = 4,
+    .dpi = 265,
+    .touchscreenSettings{.hasMultitouch = false},
+};
+
+// Kobo Aura H2O:
+KoboDeviceDescriptor KoboDahlia = {
+    .device = KoboAuraH2O,
+    .mark = 5,
+    .dpi = 265,
 };
 
 // Kobo Aura H2O2:
 KoboDeviceDescriptor KoboSnow = {
     .device = KoboAuraH2O2_v1,
+    .mark = 6,
     .dpi = 265,
     .touchscreenSettings = {.invertX = false},
     .frontlightSettings =
@@ -84,8 +102,8 @@ KoboDeviceDescriptor KoboSnow = {
 //- @fixme Check if the Clara fix actually helps here... (#4015)
 KoboDeviceDescriptor KoboSnowRev2 = {
     .device = KoboAuraH2O2_v2,
+    .mark = 7,
     .dpi = 265,
-    .isMk7 = true,
     .frontlightSettings =
         {
             .hasNaturalLight = true,
@@ -94,39 +112,37 @@ KoboDeviceDescriptor KoboSnowRev2 = {
         },
 };
 
+// Kobo Aura One:
+KoboDeviceDescriptor KoboDaylight = {
+    .device = KoboAuraOne,
+    .mark = 6,
+    .dpi = 300,
+    .frontlightSettings = {.hasNaturalLight = true,
+                           .frontlightDevWhite = "/sys/class/backlight/lm3630a_led1b",
+                           .frontlightDevRed = "/sys/class/backlight/lm3630a_led1a",
+                           .frontlightDevGreen = "/sys/class/backlight/lm3630a_ledb"},
+};
+
 // Kobo Aura second edition:
 KoboDeviceDescriptor KoboStar = {
     .device = KoboAura2,
+    .mark = 6,
     .dpi = 212,
 };
 
 // Kobo Aura second edition, Rev 2:
 KoboDeviceDescriptor KoboStarRev2 = {
     .device = KoboAura2_v2,
+    .mark = 7,
     .dpi = 212,
-    .isMk7 = true,
-};
-
-// Kobo Glo HD:
-KoboDeviceDescriptor KoboAlyssum = {
-    .device = KoboGloHD,
-    .dpi = 300,
-};
-
-// Kobo Touch 2.0:
-KoboDeviceDescriptor KoboPika = {
-    .device = KoboTouch2,
-    .dpi = 167,
-    .frontlightSettings = {.hasFrontLight = false},
-
 };
 
 // Kobo Clara HD:
 KoboDeviceDescriptor KoboNova = {
     .device = KoboClaraHD,
+    .mark = 7,
     .dpi = 300,
     .canToggleChargingLED = true,
-    .isMk7 = true,
     .frontlightSettings =
         {
             .hasNaturalLight = true,
@@ -150,10 +166,10 @@ KoboDeviceDescriptor KoboNova = {
 //       There's also a CM_ROTARY_ENABLE command, but which seems to do as much nothing as the STATUS one...
 KoboDeviceDescriptor KoboFrost = {
     .device = KoboForma,
+    .mark = 7,
     .dpi = 300,
     .hasKeys = true,
     .canToggleChargingLED = true,
-    .isMk7 = true,
     .hasGSensor = true,
     .frontlightSettings =
         {
@@ -172,18 +188,16 @@ KoboDeviceDescriptor KoboFrost = {
 // Kobo Libra:
 // NOTE: Assume the same quirks as the Forma apply.
 KoboDeviceDescriptor KoboStorm = {
-    .device = KoboLibra,
+    .device = KoboLibraH2O,
+    .mark = 7,
     .dpi = 300,
     .hasKeys = true,
     .canToggleChargingLED = true,
-    .isMk7 = true,
     .hasGSensor = true,
     .frontlightSettings =
         {
             .hasNaturalLight = true,
             .hasNaturalLightMixer = true,
-            // Warmth goes from 0 to 10 on the .device's side (our own internal scale is still normalized
-            // to [0...100]) NOTE: Those three extra keys are *MANDATORY* if .frontlightDevMixer is set!
             .naturalLightInverted = true,
             .naturalLightMin = 0,
             .naturalLightMax = 10,
@@ -200,17 +214,18 @@ KoboDeviceDescriptor KoboStorm = {
 };
 
 // Kobo Nia:
-//- @fixme: Untested, assume it's Clara-ish for now.
 KoboDeviceDescriptor KoboLuna = {
     .device = KoboNia,
+    .mark = 7,
     .dpi = 212,
     .canToggleChargingLED = true,
-    .isMk7 = true,
 };
 
 // Kobo Elipsa
+// TODO...
 KoboDeviceDescriptor KoboEuropa = {
-    .device = KoboElypsa,
+    .device = KoboElipsa,
+    .mark = 8,
     .dpi = 227,
     .canToggleChargingLED = true,
     .hasGSensor = true,
@@ -272,38 +287,47 @@ KoboDeviceDescriptor determineDevice()
     int modelNumber = modelNumberStr.toInt();
 
     KoboDeviceDescriptor device;
-
-    if (deviceName == "alyssum")
+    if (deviceName == "trilogy")
     {
-        device = KoboAlyssum;
-    }
-    else if (deviceName == "dahlia")
-    {
-        device = KoboDahlia;
-    }
-    else if (deviceName == "dragon")
-    {
-        device = KoboDragon;
-    }
-    else if (deviceName == "phoenix")
-    {
-        device = KoboPhoenix;
-    }
-    else if (deviceName == "kraken")
-    {
-        device = KoboKraken;
-    }
-    else if (deviceName == "trilogy")
-    {
-        device = KoboTrilogy;
+        if (modelNumber == 310)
+            device = KoboTrilogyAB;
+        else  // if (modelNumber == 320)
+            device = KoboTrilogyC;
     }
     else if (deviceName == "pixie")
     {
         device = KoboPixie;
     }
+    else if (deviceName == "kraken")
+    {
+        device = KoboKraken;
+    }
+    else if (deviceName == "alyssum")
+    {
+        device = KoboAlyssum;
+    }
     else if (deviceName == "pika")
     {
         device = KoboPika;
+    }
+    else if (deviceName == "phoenix")
+    {
+        device = KoboPhoenix;
+    }
+    else if (deviceName == "dragon")
+    {
+        device = KoboDragon;
+    }
+    else if (deviceName == "dahlia")
+    {
+        device = KoboDahlia;
+    }
+    else if (deviceName == "snow")
+    {
+        if (modelNumber == 374)
+            device = KoboSnow;
+        else  // if (modelNumber == 378)
+            device = KoboSnowRev2;
     }
     else if (deviceName == "daylight")
     {
@@ -311,10 +335,10 @@ KoboDeviceDescriptor determineDevice()
     }
     else if (deviceName == "star")
     {
-        if (modelNumber == 379)
-            device = KoboStarRev2;
-        else
+        if (modelNumber == 375)
             device = KoboStar;
+        else  // if (modelNumber == 379)
+            device = KoboStarRev2;
     }
     else if (deviceName == "nova")
     {
@@ -328,13 +352,6 @@ KoboDeviceDescriptor determineDevice()
     {
         device = KoboStorm;
     }
-    else if (deviceName == "snow")
-    {
-        if (modelNumber == 378)
-            device = KoboSnowRev2;
-        else  // if (modelNumber == 374)
-            device = KoboSnow;
-    }
     else if (deviceName == "luna")
     {
         device = KoboLuna;
@@ -345,7 +362,7 @@ KoboDeviceDescriptor determineDevice()
     }
     else
     {
-        device = KoboEuropa;
+        device = KoboTrilogyC;
     }
 
     QString fbDevice = QLatin1String("/dev/fb0");
@@ -390,9 +407,6 @@ KoboDeviceDescriptor determineDevice()
     device.height = geometry.height();
     device.physicalWidth = mPhysicalSize.width();
     device.physicalHeight = mPhysicalSize.height();
-
-    if (device.viewport.isEmpty())
-        device.viewport = geometry;
 
     device.modelName = deviceName;
     device.modelNumber = modelNumber;

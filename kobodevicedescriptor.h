@@ -6,25 +6,26 @@
 
 enum KoboDevice
 {
-    KoboTouch = 1,
-    KoboGlo,
+    KoboUnknown,
+    KoboTouchAB,
+    KoboTouchC,
     KoboMini,
+    KoboGlo,
+    KoboGloHD,
+    KoboTouch2,
     KoboAura,
     KoboAuraHD,
     KoboAuraH2O,
-    KoboGloHD,
-    KoboTouch2,
-    KoboAura2,
-    KoboAura2_v2,
     KoboAuraH2O2_v1,
     KoboAuraH2O2_v2,
     KoboAuraOne,
+    KoboAura2,
+    KoboAura2_v2,
     KoboClaraHD,
     KoboForma,
-    KoboLibra,
+    KoboLibraH2O,
     KoboNia,
-    KoboElypsa,
-    KoboOther
+    KoboElipsa
 };
 
 struct TouchscreenSettings
@@ -57,22 +58,18 @@ struct KoboDeviceDescriptor
     KoboDevice device;
     QString modelName;
     int modelNumber;
+    int mark = 6;
     int dpi;
     int width;
     int height;
     qreal physicalWidth;
     qreal physicalHeight;
 
-    // viewport to compensate for bezels; unsupported for now
-    QRect viewport;
-
     bool hasKeys = false;
     bool canToggleChargingLED = false;
 
     // New devices *may* be REAGL-aware, but generally don't expect explicit REAGL requests, default to not.
     bool isREAGL = false;
-    //  Mark 7 devices sport an updated driver.
-    bool isMk7 = false;
 
     // unused for now
     bool hasGSensor = false;
