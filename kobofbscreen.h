@@ -19,7 +19,12 @@ public:
 
     bool initialize() override;
 
+    void setPartialRefreshMode(PartialRefreshMode partialRefreshMode);
+
+    void setFullScreenRefreshMode(WaveForm waveform);
     void clearScreen(bool waitForCompleted);
+
+    void enableDithering(bool dithering);
 
     void doManualRefresh(const QRect &region);
 
