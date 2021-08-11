@@ -211,6 +211,8 @@ bool KoboFbScreen::initialize()
     koboDevice->height = fbink_fbdata.vInfo.yres;
     mGeometry = {0, 0, koboDevice->width, koboDevice->height};
 
+    mPhysicalSize = QSizeF(koboDevice->physicalWidth, koboDevice->physicalHeight);
+
     if (!fbink_fbdata.isSunxiDevice)
     {
         mMmap.offset = 0;
