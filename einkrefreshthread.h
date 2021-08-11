@@ -7,8 +7,10 @@
 #include <QThread>
 #include <QTime>
 #include <QWaitCondition>
+#include <algorithm>
 
 #include "eink.h"
+#include "eink_sunxi.h"
 #include "kobodevicedescriptor.h"
 #include "refreshmode.h"
 
@@ -20,8 +22,8 @@ public:
                       PartialRefreshMode partialRefreshMode, WaveForm fullscreenWaveForm, bool dithering);
     ~EinkrefreshThread();
 
-    void initialize(int fb, KoboDeviceDescriptor* koboDevice, int marker, bool waitCompleted,
-                    PartialRefreshMode partialRefreshMode, bool dithering);
+    void initialize(int fb, FBInkKoboSunxi *sunxiCtx, KoboDeviceDescriptor *koboDevice, int marker,
+                    bool waitCompleted, PartialRefreshMode partialRefreshMode, bool dithering);
 
     void setPartialRefreshMode(PartialRefreshMode partialRefreshMode);
 
@@ -30,7 +32,7 @@ public:
 
     void enableDithering(bool dithering);
 
-    void refresh(const QRect& r);
+    void refresh(const QRect &r);
     void doExit();
 
 protected:
@@ -41,6 +43,10 @@ private:
     QQueue<QRect> queue;
     QMutex mutexWaitCondition;
     QMutex mutexQueue;
+
+    KoboDeviceDescriptor *koboDevice;
+
+    FBInkKoboSunxi *sunxiCtx;
 
     char exitFlag;
     int fb;

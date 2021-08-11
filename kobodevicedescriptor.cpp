@@ -230,11 +230,9 @@ KoboDeviceDescriptor KoboEuropa = {
     .canToggleChargingLED = true,
     .hasGSensor = true,
     .isSunxi = true,
-    .bootRotation = -1,
     .batterySysfs = "/sys/class/power_supply/battery",
     .ntxDev = "/dev/input/by-path/platform-ntx_event0-event",
     .touchDev = "/dev/input/by-path/platform-0-0010-event",
-    .pressureEvent = "C.ABS_MT_PRESSURE",
 };
 
 static QString exec(const char *cmd)

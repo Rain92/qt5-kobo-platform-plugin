@@ -81,17 +81,13 @@ struct KoboDeviceDescriptor
     bool hasReliableMxcWaitFor = true;
     // Sunxi devices require a completely different fb backend...
     bool isSunxi = false;
-    // On sunxi, "native" panel layout used to compute the G2D rotation handle (e.g., deviceQuirks.nxtBootRota
-    // in FBInk).
-    int bootRotation = 0;
+
     // Standard sysfs path to the battery directory
     QString batterySysfs = "/sys/class/power_supply/mc13892_bat";
     // Stable path to the NTX input device
     QString ntxDev = "/dev/input/event0";
     // Stable path to the Touch input device
     QString touchDev = "/dev/input/event1";
-    // Event code to use to detect contact pressure
-    QString pressureEvent = "";
 };
 
 KoboDeviceDescriptor determineDevice();

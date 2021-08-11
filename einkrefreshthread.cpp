@@ -1,6 +1,5 @@
 #include "einkrefreshthread.h"
 
-#include <algorithm>  // std::min
 #define fastpartialrefreshthreshold 60
 #define fastpartialrefreshthreshold2 40
 #define TOLERANCE 80
@@ -15,8 +14,9 @@ EinkrefreshThread::~EinkrefreshThread()
     doExit();
 }
 
-void EinkrefreshThread::initialize(int fb, KoboDeviceDescriptor* koboDevice, int marker, bool waitCompleted,
-                                   PartialRefreshMode partialRefreshMode, bool dithering)
+void EinkrefreshThread::initialize(int fb, FBInkKoboSunxi* sunxiCtx, KoboDeviceDescriptor* koboDevice,
+                                   int marker, bool waitCompleted, PartialRefreshMode partialRefreshMode,
+                                   bool dithering)
 {
     this->fb = fb;
     this->screenRect = QRect(0, 0, koboDevice->width, koboDevice->height);
@@ -27,6 +27,10 @@ void EinkrefreshThread::initialize(int fb, KoboDeviceDescriptor* koboDevice, int
     this->waveFormFullscreen = WaveForm_GC16;
     this->waveFormPartial = WaveForm_AUTO;
     this->waveFormFast = WaveForm_A2;
+
+    this->koboDevice = koboDevice;
+
+    this->sunxiCtx = 0;
 
     if (koboDevice->isREAGL)
     {
@@ -42,6 +46,8 @@ void EinkrefreshThread::initialize(int fb, KoboDeviceDescriptor* koboDevice, int
     {
         this->waveFormPartial = WaveForm_REAGL;
         this->waveFormFast = WaveForm_DU;
+
+        this->sunxiCtx = sunxiCtx;
     }
 
     this->waitCompleted = waitCompleted && koboDevice->hasReliableMxcWaitFor;
@@ -75,10 +81,22 @@ void EinkrefreshThread::clearScreen(bool waitForCompleted)
             region.width = screenRect.width();
             region.height = screenRect.height();
 
-            refreshScreenRegion(fb, region, NTX_WFM_MODE_INIT, UPDATE_MODE_FULL, marker, 0);
+            if (koboDevice->mark <= 6)
+                refreshScreenRegion(fb, region, NTX_WFM_MODE_INIT, UPDATE_MODE_FULL, marker);
+            else if (koboDevice->mark == 7)
+                refreshScreenRegionMk7(fb, region, NTX_WFM_MODE_INIT, UPDATE_MODE_FULL, 0, marker);
+            else if (koboDevice->isSunxi)
+                refreshScreenRegionSunxi(*sunxiCtx, region, NTX_WFM_MODE_INIT, UPDATE_MODE_FULL, 0, marker);
 
             if (waitForCompleted)
-                waitRefreshComplete(fb, marker);
+            {
+                if (koboDevice->mark <= 6)
+                    waitRefreshComplete(fb, marker);
+                else if (koboDevice->mark == 7)
+                    waitRefreshCompleteMk7(fb, marker);
+                else if (koboDevice->isSunxi)
+                    waitRefreshCompleteSunxi(*sunxiCtx, marker);
+            }
         }
     }
 }
@@ -162,14 +180,26 @@ void EinkrefreshThread::run()
                     uint32_t partialWaveform = fastPartialRefresh ? waveFormFast : waveFormPartial;
                     uint32_t actualWaveform = isFullRefresh ? waveFormFullscreen : partialWaveform;
                     uint32_t updateMode = isFullRefresh ? UPDATE_MODE_FULL : UPDATE_MODE_PARTIAL;
-                    uint32_t flags = dithering ? EPDC_FLAG_USE_DITHERING_Y4 : 0;
 
                     //                    qDebug() << "Refreshmode: " << fastPartialRefresh << isFullRefresh
                     //                    << actualWaveform << r;
-                    refreshScreenRegion(fb, region, actualWaveform, updateMode, marker, flags);
+
+                    if (koboDevice->mark <= 6)
+                        refreshScreenRegion(fb, region, actualWaveform, updateMode, marker);
+                    else if (koboDevice->mark == 7)
+                        refreshScreenRegionMk7(fb, region, actualWaveform, updateMode, 0, marker);
+                    else if (koboDevice->isSunxi)
+                        refreshScreenRegionSunxi(*sunxiCtx, region, actualWaveform, updateMode, 0, marker);
 
                     if (waitCompleted)
-                        waitRefreshComplete(fb, marker);
+                    {
+                        if (koboDevice->mark <= 6)
+                            waitRefreshComplete(fb, marker);
+                        else if (koboDevice->mark == 7)
+                            waitRefreshCompleteMk7(fb, marker);
+                        else if (koboDevice->isSunxi)
+                            waitRefreshCompleteSunxi(*sunxiCtx, marker);
+                    }
                 }
                 else
                     break;

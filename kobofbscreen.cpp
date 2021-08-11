@@ -222,8 +222,16 @@ KoboFbScreen::~KoboFbScreen()
 
     if (mFbFd != -1)
     {
-        if (mMmap.data)
-            munmap(mMmap.data - mMmap.offset, mMmap.size);
+        if (koboDevice->mark <= 7)
+        {
+            if (mMmap.data)
+                munmap(mMmap.data - mMmap.offset, mMmap.size);
+        }
+        else if (koboDevice->isSunxi)
+        {
+            unmap_ion(mMmap.data, sunxiCtx);
+        }
+
         close(mFbFd);
     }
 
@@ -289,49 +297,85 @@ bool KoboFbScreen::initialize()
     }
 
     // Read the fixed and variable screen information
-    fb_fix_screeninfo finfo;
-    fb_var_screeninfo vinfo;
-    memset(&vinfo, 0, sizeof(vinfo));
-    memset(&finfo, 0, sizeof(finfo));
+    memset(&vInfo, 0, sizeof(vInfo));
+    memset(&fInfo, 0, sizeof(fInfo));
 
-    if (ioctl(mFbFd, FBIOGET_FSCREENINFO, &finfo) != 0)
+    if (ioctl(mFbFd, FBIOGET_FSCREENINFO, &fInfo) != 0)
     {
         qErrnoWarning(errno, "Error reading fixed information");
         return false;
     }
 
-    if (ioctl(mFbFd, FBIOGET_VSCREENINFO, &vinfo))
+    if (ioctl(mFbFd, FBIOGET_VSCREENINFO, &vInfo))
     {
         qErrnoWarning(errno, "Error reading variable information");
         return false;
     }
 
-    mDepth = determineDepth(vinfo);
-    mBytesPerLine = finfo.line_length;
-
-    // viewport is unsupported for now
-    // Rect geometry = koboDevice->viewport;
+    mDepth = determineDepth(vInfo);
+    mBytesPerLine = fInfo.line_length;
 
     QRect geometry = {0, 0, koboDevice->width, koboDevice->height};
     mGeometry = QRect(QPoint(0, 0), geometry.size());
-    mFormat = determineFormat(vinfo, mDepth);
+    mFormat = determineFormat(vInfo, mDepth);
 
     mPhysicalSize = QSizeF(koboDevice->physicalWidth, koboDevice->physicalHeight);
 
-    // mmap the framebuffer
-    mMmap.size = finfo.smem_len;
-    uchar *data = (unsigned char *)mmap(0, mMmap.size, PROT_READ | PROT_WRITE, MAP_SHARED, mFbFd, 0);
-    if ((long)data == -1)
+    if (koboDevice->mark <= 7)
     {
-        qErrnoWarning(errno, "Failed to mmap framebuffer");
-        return false;
+        // mmap the framebuffer
+        mMmap.size = fInfo.smem_len;
+        uchar *data = (unsigned char *)mmap(0, mMmap.size, PROT_READ | PROT_WRITE, MAP_SHARED, mFbFd, 0);
+        if ((long)data == -1)
+        {
+            qErrnoWarning(errno, "Failed to mmap framebuffer");
+            return false;
+        }
+
+        mMmap.offset = geometry.y() * mBytesPerLine + geometry.x() * mDepth / 8;
+        mMmap.data = data + mMmap.offset;
+
+        QFbScreen::initializeCompositor();
+        mFbScreenImage = QImage(mMmap.data, mGeometry.width(), mGeometry.height(), mBytesPerLine, mFormat);
     }
+    else if (koboDevice->isSunxi)
+    {
+        sunxiCtx = setupIonLayer(vInfo);
 
-    mMmap.offset = geometry.y() * mBytesPerLine + geometry.x() * mDepth / 8;
-    mMmap.data = data + mMmap.offset;
+        fixupSunxiFB(sunxiCtx, fInfo, vInfo);
 
-    QFbScreen::initializeCompositor();
-    mFbScreenImage = QImage(mMmap.data, geometry.width(), geometry.height(), mBytesPerLine, mFormat);
+        unsigned char *fbPtr = 0;
+
+        int res = memmap_ion(fbPtr, sunxiCtx, fInfo);
+
+        qDebug() << "fb info: " << vInfo.xres << vInfo.yres << vInfo.xres_virtual << vInfo.yres_virtual
+                 << vInfo.rotate << sunxiCtx.rota << vInfo.bits_per_pixel << fInfo.line_length
+                 << fInfo.smem_len;
+
+        koboDevice->width = vInfo.xres;
+        koboDevice->height = vInfo.yres;
+
+        mDepth = 8;
+        mFormat = QImage::Format_Grayscale8;
+        mBytesPerLine = fInfo.line_length;
+        mGeometry = {0, 0, koboDevice->width, koboDevice->height};
+
+        if (res == EXIT_FAILURE)
+        {
+            qErrnoWarning(errno, "Failed to mmap ion buffer!");
+            return false;
+        }
+
+        mMmap.offset = 0;
+        mMmap.data = fbPtr;
+        mMmap.size = sunxiCtx.alloc_size;
+
+        QFbScreen::initializeCompositor();
+        mFbScreenImage = QImage(mMmap.data, vInfo.xres, vInfo.yres, mBytesPerLine, mFormat);
+
+        qDebug() << "fb info2:" << mGeometry.width() << mGeometry.height() << vInfo.xres << vInfo.yres
+                 << mBytesPerLine << fbPtr << mMmap.data;
+    }
 
     //    mCursor = new QFbCursor(this);
     //    mCursor->setOverrideCursor(Qt::BlankCursor);
@@ -340,13 +384,16 @@ bool KoboFbScreen::initialize()
     if (mTtyFd == -1)
         qErrnoWarning(errno, "Failed to open tty");
 
-    switchToGraphicsMode(mTtyFd, doSwitchToGraphicsMode, &mOldTtyMode);
-    blankScreen(mFbFd, false);
+    //    if (koboDevice->mark <= 7)
+    //    {
+    //        switchToGraphicsMode(mTtyFd, doSwitchToGraphicsMode, &mOldTtyMode);
+    //        blankScreen(mFbFd, false);
+    //    }
 
-    int marker = getpid();
+    int marker = std::max(getpid(), 123) + 3252;
     bool wait_refresh_completed = false;
 
-    refreshThread.initialize(mFbFd, koboDevice, marker, wait_refresh_completed,
+    refreshThread.initialize(mFbFd, &sunxiCtx, koboDevice, marker, wait_refresh_completed,
                              PartialRefreshMode::MixedPartialRefresh, true);
 
     if (logicalDpiTarget > 0)
@@ -386,8 +433,8 @@ void KoboFbScreen::doManualRefresh(QRect region)
 
 QRegion KoboFbScreen::doRedraw()
 {
-    //    QElapsedTimer t;
-    //    t.start();
+    QElapsedTimer t;
+    t.start();
     QRegion touched = QFbScreen::doRedraw();
 
     if (touched.isEmpty())
@@ -405,7 +452,7 @@ QRegion KoboFbScreen::doRedraw()
         r = r.united(rect);
 
     refreshThread.refresh(r);
-    //    qDebug() << r << t.elapsed();
+    qDebug() << "redrawing region" << r << "in" << t.elapsed();
 
     return touched;
 }

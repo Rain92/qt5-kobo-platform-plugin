@@ -17,6 +17,7 @@ QT +=  widgets \
 
 SOURCES = main.cpp \
           eink.cpp \
+          eink_sunxi.cpp \
           einkrefreshthread.cpp \
           kobobuttonintegration.cpp \
           kobodevicedescriptor.cpp \
@@ -30,6 +31,7 @@ SOURCES = main.cpp \
           qevdevutil.cpp
 
 HEADERS = devicehandlerlist_p.h \
+          eink_sunxi.h \
           einkrefreshthread.h \
           eink.h \
           ion-kobo.h \

@@ -3,6 +3,7 @@
 
 #include <QtFbSupport/private/qfbscreen_p.h>
 
+#include "eink_sunxi.h"
 #include "einkrefreshthread.h"
 #include "kobodevicedescriptor.h"
 
@@ -49,6 +50,10 @@ private:
         uchar *data;
         int offset, size;
     } mMmap;
+
+    fb_fix_screeninfo fInfo;
+    fb_var_screeninfo vInfo;
+    FBInkKoboSunxi sunxiCtx;
 
     QPainter *mBlitter;
 };
