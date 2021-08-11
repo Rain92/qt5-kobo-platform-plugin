@@ -242,16 +242,6 @@ bool KoboFbScreen::initialize()
     return true;
 }
 
-void KoboFbScreen::setPartialRefreshMode(PartialRefreshMode partialRefreshMode)
-{
-    //    this->refreshThread.setPartialRefreshMode(partialRefreshMode);
-}
-
-void KoboFbScreen::setFullScreenRefreshMode(WaveForm waveform)
-{
-    //    this->refreshThread.setFullScreenRefreshMode(waveform);
-}
-
 void KoboFbScreen::clearScreen(bool waitForCompleted)
 {
     FBInkRect r = {0, 0, static_cast<unsigned short>(mGeometry.width()),
@@ -260,11 +250,6 @@ void KoboFbScreen::clearScreen(bool waitForCompleted)
 
     if (waitForCompleted && koboDevice->hasReliableMxcWaitFor)
         fbink_wait_for_complete(mFbFd, *fbink_fbdata.lastMarker);
-}
-
-void KoboFbScreen::enableDithering(bool dithering)
-{
-    //    this->refreshThread.enableDithering(dithering);
 }
 
 void KoboFbScreen::doManualRefresh(const QRect &region)

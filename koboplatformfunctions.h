@@ -48,31 +48,6 @@ public:
             func(val, temp);
     }
 
-    typedef void (*setPartialRefreshModeType)(PartialRefreshMode partialRefreshMode);
-    static QByteArray setPartialRefreshModeIdentifier() { return QByteArrayLiteral("setPartialRefreshMode"); }
-
-    static void setPartialRefreshMode(PartialRefreshMode partialRefreshMode)
-    {
-        auto func = reinterpret_cast<setPartialRefreshModeType>(
-            QGuiApplication::platformFunction(setPartialRefreshModeIdentifier()));
-        if (func)
-            func(partialRefreshMode);
-    }
-
-    typedef void (*setFullScreenRefreshModeType)(WaveForm waveform);
-    static QByteArray setFullScreenRefreshModeIdentifier()
-    {
-        return QByteArrayLiteral("setFullScreenRefreshMode");
-    }
-
-    static void setFullScreenRefreshMode(WaveForm waveform)
-    {
-        auto func = reinterpret_cast<setFullScreenRefreshModeType>(
-            QGuiApplication::platformFunction(setFullScreenRefreshModeIdentifier()));
-        if (func)
-            func(waveform);
-    }
-
     typedef void (*clearScreenType)(bool waitForCompleted);
     static QByteArray clearScreenIdentifier() { return QByteArrayLiteral("clearScreen"); }
 
@@ -82,17 +57,6 @@ public:
             reinterpret_cast<clearScreenType>(QGuiApplication::platformFunction(clearScreenIdentifier()));
         if (func)
             func(waitForCompleted);
-    }
-
-    typedef void (*enableDitheringType)(bool dithering);
-    static QByteArray enableDitheringIdentifier() { return QByteArrayLiteral("enableDithering"); }
-
-    static void enableDithering(bool dithering)
-    {
-        auto func = reinterpret_cast<enableDitheringType>(
-            QGuiApplication::platformFunction(enableDitheringIdentifier()));
-        if (func)
-            func(dithering);
     }
 
     typedef void (*doManualRefreshType)(QRect region);

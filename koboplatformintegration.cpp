@@ -189,14 +189,8 @@ QFunctionPointer KoboPlatformIntegration::platformFunction(const QByteArray &fun
         return QFunctionPointer(getBatteryLevelStatic);
     else if (function == KoboPlatformFunctions::isBatteryChargingIdentifier())
         return QFunctionPointer(isBatteryChargingStatic);
-    else if (function == KoboPlatformFunctions::setPartialRefreshModeIdentifier())
-        return QFunctionPointer(setPartialRefreshModeStatic);
-    else if (function == KoboPlatformFunctions::setFullScreenRefreshModeIdentifier())
-        return QFunctionPointer(setFullScreenRefreshModeStatic);
     else if (function == KoboPlatformFunctions::clearScreenIdentifier())
         return QFunctionPointer(clearScreenStatic);
-    else if (function == KoboPlatformFunctions::enableDitheringIdentifier())
-        return QFunctionPointer(enableDitheringStatic);
     else if (function == KoboPlatformFunctions::doManualRefreshIdentifier())
         return QFunctionPointer(doManualRefreshStatic);
     else if (function == KoboPlatformFunctions::getKoboDeviceDescriptorIdentifier())
@@ -236,36 +230,12 @@ bool KoboPlatformIntegration::isBatteryChargingStatic()
     return self->koboAdditions->isBatteryCharging();
 }
 
-void KoboPlatformIntegration::setPartialRefreshModeStatic(PartialRefreshMode partial_refresh_mode)
-{
-    KoboPlatformIntegration *self =
-        static_cast<KoboPlatformIntegration *>(QGuiApplicationPrivate::platformIntegration());
-
-    self->m_primaryScreen->setPartialRefreshMode(partial_refresh_mode);
-}
-
-void KoboPlatformIntegration::setFullScreenRefreshModeStatic(WaveForm waveform)
-{
-    KoboPlatformIntegration *self =
-        static_cast<KoboPlatformIntegration *>(QGuiApplicationPrivate::platformIntegration());
-
-    self->m_primaryScreen->setFullScreenRefreshMode(waveform);
-}
-
 void KoboPlatformIntegration::clearScreenStatic(bool waitForCompleted)
 {
     KoboPlatformIntegration *self =
         static_cast<KoboPlatformIntegration *>(QGuiApplicationPrivate::platformIntegration());
 
     self->m_primaryScreen->clearScreen(waitForCompleted);
-}
-
-void KoboPlatformIntegration::enableDitheringStatic(bool dithering)
-{
-    KoboPlatformIntegration *self =
-        static_cast<KoboPlatformIntegration *>(QGuiApplicationPrivate::platformIntegration());
-
-    self->m_primaryScreen->enableDithering(dithering);
 }
 
 void KoboPlatformIntegration::doManualRefreshStatic(QRect region)
