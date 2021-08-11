@@ -53,6 +53,8 @@ private:
     FBInkConfig fbink_cfg = {0U};
 
     bool waitForRefresh;
+    bool useHardwareDithering;
+
     WFM_MODE_INDEX_T waveFormFullscreen;
     WFM_MODE_INDEX_T waveFormPartial;
     WFM_MODE_INDEX_T waveFormFast;

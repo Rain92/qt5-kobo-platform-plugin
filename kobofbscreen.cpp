@@ -165,6 +165,7 @@ bool KoboFbScreen::initialize()
     }
 
     waitForRefresh = false;
+    useHardwareDithering = false;
     waveFormFullscreen = WFM_GC16;
     waveFormPartial = WFM_AUTO;
     waveFormFast = WFM_A2;
@@ -205,8 +206,10 @@ bool KoboFbScreen::initialize()
 
     fbink_fbdata = fbink_get_fb_data(mFbFd);
 
+    mDepth = determineDepth(fbink_fbdata.vInfo);
+    mFormat = determineFormat(fbink_fbdata.vInfo, mDepth);
+
     mBytesPerLine = fbink_fbdata.fInfo.line_length;
-    mFormat = QImage::Format_Grayscale8;
     koboDevice->width = fbink_fbdata.vInfo.xres;
     koboDevice->height = fbink_fbdata.vInfo.yres;
     mGeometry = {0, 0, koboDevice->width, koboDevice->height};
@@ -249,7 +252,7 @@ void KoboFbScreen::setPartialRefreshMode(PartialRefreshMode partialRefreshMode)
 
 void KoboFbScreen::setFullScreenRefreshMode(WaveForm waveform)
 {
-    //    this->refreshThread.setFullScreenRefreshMode(waveform);
+    this->waveFormFullscreen = waveform;
 }
 
 void KoboFbScreen::clearScreen(bool waitForCompleted)
@@ -264,7 +267,7 @@ void KoboFbScreen::clearScreen(bool waitForCompleted)
 
 void KoboFbScreen::enableDithering(bool dithering)
 {
-    //    this->refreshThread.enableDithering(dithering);
+    useHardwareDithering = dithering;
 }
 
 void KoboFbScreen::doManualRefresh(const QRect &region)
