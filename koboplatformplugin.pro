@@ -12,13 +12,12 @@ QT +=  widgets \
     service_support-private eventdispatcher_support-private \
     fontdatabase_support-private fb_support-private devicediscovery_support-private testlib
 
-#qtHaveModule(input_support-private): \
-#    QT += input_support-private
+
+
+LIBS += -L/home/andreas/Desktop/qtproject/FBInk/Release -lfbink
+
 
 SOURCES = main.cpp \
-          eink.cpp \
-          eink_sunxi.cpp \
-          einkrefreshthread.cpp \
           kobobuttonintegration.cpp \
           kobodevicedescriptor.cpp \
           kobofbscreen.cpp \
@@ -31,10 +30,6 @@ SOURCES = main.cpp \
           qevdevutil.cpp
 
 HEADERS = devicehandlerlist_p.h \
-          eink_sunxi.h \
-          einkrefreshthread.h \
-          eink.h \
-          ion-kobo.h \
           kobobuttonintegration.h \
           kobodevicedescriptor.h \
           kobofbscreen.h \
@@ -49,8 +44,7 @@ HEADERS = devicehandlerlist_p.h \
           qevdevtouchmanager_p.h \
           qevdevutil_p.h \
           qtouchoutputmapping_p.h \
-          refreshmode.h \
-          sunxi-kobo.h
+          refreshmode.h
 
 
 OTHER_FILES += \

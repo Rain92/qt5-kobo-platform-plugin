@@ -1,49 +1,12 @@
 #include "kobofbscreen.h"
 
-#include <QtFbSupport/private/qfbcursor_p.h>
 #include <QtFbSupport/private/qfbwindow_p.h>
-#include <errno.h>
-#include <fcntl.h>
-#include <limits.h>
-#include <linux/fb.h>
-#include <linux/kd.h>
-#include <private/qcore_unix_p.h>  // overrides QT_OPEN
-#include <qdebug.h>
-#include <qimage.h>
-#include <signal.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <sys/ioctl.h>
-#include <sys/mman.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <unistd.h>
 
-#include <QtCore/QFile>
-#include <QtCore/QRegularExpression>
 #include <QtGui/QPainter>
-#include <array>
-#include <cstdio>
-#include <iostream>
-#include <memory>
-#include <stdexcept>
-#include <string>
 
-static int openFramebufferDevice(const QString &dev)
-{
-    int fd = -1;
-
-    if (access(dev.toLatin1().constData(), R_OK | W_OK) == 0)
-        fd = QT_OPEN(dev.toLatin1().constData(), O_RDWR);
-
-    if (fd == -1)
-    {
-        if (access(dev.toLatin1().constData(), R_OK) == 0)
-            fd = QT_OPEN(dev.toLatin1().constData(), O_RDONLY);
-    }
-
-    return fd;
-}
+#define fastpartialrefreshthreshold 60
+#define fastpartialrefreshthreshold2 40
+#define TOLERANCE 80
 
 static int determineDepth(const fb_var_screeninfo &vinfo)
 {
@@ -163,52 +126,6 @@ static QImage::Format determineFormat(const fb_var_screeninfo &info, int depth)
     return format;
 }
 
-static int openTtyDevice(const QString &device)
-{
-    const char *const devs[] = {"/dev/tty0", "/dev/tty", "/dev/console", 0};
-
-    int fd = -1;
-    if (device.isEmpty())
-    {
-        for (const char *const *dev = devs; *dev; ++dev)
-        {
-            fd = QT_OPEN(*dev, O_RDWR);
-            if (fd != -1)
-                break;
-        }
-    }
-    else
-    {
-        fd = QT_OPEN(QFile::encodeName(device).constData(), O_RDWR);
-    }
-
-    return fd;
-}
-
-static void switchToGraphicsMode(int ttyfd, bool doSwitch, int *oldMode)
-{
-    // Do not warn if the switch fails: the ioctl fails when launching from a
-    // remote console and there is nothing we can do about it.  The matching
-    // call in resetTty should at least fail then, too, so we do no harm.
-    if (ioctl(ttyfd, KDGETMODE, oldMode) == 0)
-    {
-        if (doSwitch && *oldMode != KD_GRAPHICS)
-            ioctl(ttyfd, KDSETMODE, KD_GRAPHICS);
-    }
-}
-
-static void resetTty(int ttyfd, int oldMode)
-{
-    ioctl(ttyfd, KDSETMODE, oldMode);
-
-    QT_CLOSE(ttyfd);
-}
-
-static void blankScreen(int fd, bool on)
-{
-    ioctl(fd, FBIOBLANK, on ? VESA_POWERDOWN : VESA_NO_BLANKING);
-}
-
 KoboFbScreen::KoboFbScreen(const QStringList &args, KoboDeviceDescriptor *koboDevice)
     : koboDevice(koboDevice), mArgs(args), mFbFd(-1), mTtyFd(-1), mBlitter(0)
 {
@@ -217,184 +134,101 @@ KoboFbScreen::KoboFbScreen(const QStringList &args, KoboDeviceDescriptor *koboDe
 
 KoboFbScreen::~KoboFbScreen()
 {
-    if (refreshThread.isRunning())
-        refreshThread.doExit();
-
     if (mFbFd != -1)
     {
-        if (koboDevice->mark <= 7)
-        {
-            if (mMmap.data)
-                munmap(mMmap.data - mMmap.offset, mMmap.size);
-        }
-        else if (koboDevice->isSunxi)
-        {
-            unmap_ion(mMmap.data, sunxiCtx);
-        }
-
-        close(mFbFd);
+        fbink_close(mFbFd);
     }
-
-    if (mTtyFd != -1)
-        resetTty(mTtyFd, mOldTtyMode);
 
     delete mBlitter;
 }
 
 bool KoboFbScreen::initialize()
 {
-    QRegularExpression ttyRx("tty=(.*)");
     QRegularExpression fbRx("fb=(.*)");
-    QRegularExpression mmSizeRx("mmsize=(\\d+)x(\\d+)");
     QRegularExpression sizeRx("size=(\\d+)x(\\d+)");
-    QRegularExpression offsetRx("offset=(\\d+)x(\\d+)");
     QRegularExpression dpiRx("logicaldpitarget=(\\d+)");
 
-    QString fbDevice, ttyDevice;
-    QSize userMmSize;
+    QString fbDevice;
     QRect userGeometry;
-    bool doSwitchToGraphicsMode = true;
     int logicalDpiTarget = 0;
 
     // Parse arguments
     for (const QString &arg : qAsConst(mArgs))
     {
         QRegularExpressionMatch match;
-        if (arg == QLatin1String("nographicsmodeswitch"))
-            doSwitchToGraphicsMode = false;
-        else if (arg.contains(mmSizeRx, &match))
-            userMmSize = QSize(match.captured(1).toInt(), match.captured(2).toInt());
-        else if (arg.contains(sizeRx, &match))
+        if (arg.contains(sizeRx, &match))
             userGeometry.setSize(QSize(match.captured(1).toInt(), match.captured(2).toInt()));
-        else if (arg.contains(offsetRx, &match))
-            userGeometry.setTopLeft(QPoint(match.captured(1).toInt(), match.captured(2).toInt()));
-        else if (arg.contains(ttyRx, &match))
-            ttyDevice = match.captured(1);
         else if (arg.contains(fbRx, &match))
             fbDevice = match.captured(1);
         else if (arg.contains(dpiRx, &match))
             logicalDpiTarget = match.captured(1).toInt();
     }
 
-    if (fbDevice.isEmpty())
+    waitForRefresh = false;
+    waveFormFullscreen = WFM_GC16;
+    waveFormPartial = WFM_AUTO;
+    waveFormFast = WFM_A2;
+
+    if (koboDevice->isREAGL)
     {
-        fbDevice = QLatin1String("/dev/fb0");
-        if (!QFile::exists(fbDevice))
-            fbDevice = QLatin1String("/dev/graphics/fb0");
-        if (!QFile::exists(fbDevice))
-        {
-            qWarning("Unable to figure out framebuffer device. Specify it manually.");
-            return false;
-        }
+        this->waveFormPartial = WFM_REAGLD;
+        this->waveFormFast = WFM_DU;
     }
-
-    // Open the device
-    mFbFd = openFramebufferDevice(fbDevice);
-    if (mFbFd == -1)
+    else if (koboDevice->mark == 7)
     {
-        qErrnoWarning(errno, "Failed to open framebuffer %s", qPrintable(fbDevice));
-        return false;
-    }
-
-    // Read the fixed and variable screen information
-    memset(&vInfo, 0, sizeof(vInfo));
-    memset(&fInfo, 0, sizeof(fInfo));
-
-    if (ioctl(mFbFd, FBIOGET_FSCREENINFO, &fInfo) != 0)
-    {
-        qErrnoWarning(errno, "Error reading fixed information");
-        return false;
-    }
-
-    if (ioctl(mFbFd, FBIOGET_VSCREENINFO, &vInfo))
-    {
-        qErrnoWarning(errno, "Error reading variable information");
-        return false;
-    }
-
-    mDepth = determineDepth(vInfo);
-    mBytesPerLine = fInfo.line_length;
-
-    QRect geometry = {0, 0, koboDevice->width, koboDevice->height};
-    mGeometry = QRect(QPoint(0, 0), geometry.size());
-    mFormat = determineFormat(vInfo, mDepth);
-
-    mPhysicalSize = QSizeF(koboDevice->physicalWidth, koboDevice->physicalHeight);
-
-    if (koboDevice->mark <= 7)
-    {
-        // mmap the framebuffer
-        mMmap.size = fInfo.smem_len;
-        uchar *data = (unsigned char *)mmap(0, mMmap.size, PROT_READ | PROT_WRITE, MAP_SHARED, mFbFd, 0);
-        if ((long)data == -1)
-        {
-            qErrnoWarning(errno, "Failed to mmap framebuffer");
-            return false;
-        }
-
-        mMmap.offset = geometry.y() * mBytesPerLine + geometry.x() * mDepth / 8;
-        mMmap.data = data + mMmap.offset;
-
-        QFbScreen::initializeCompositor();
-        mFbScreenImage = QImage(mMmap.data, mGeometry.width(), mGeometry.height(), mBytesPerLine, mFormat);
+        this->waveFormPartial = WFM_REAGL;
+        this->waveFormFast = WFM_DU;
     }
     else if (koboDevice->isSunxi)
     {
-        sunxiCtx = setupIonLayer(vInfo);
-
-        fixupSunxiFB(sunxiCtx, fInfo, vInfo);
-
-        unsigned char *fbPtr = 0;
-
-        int res = memmap_ion(fbPtr, sunxiCtx, fInfo);
-
-        qDebug() << "fb info: " << vInfo.xres << vInfo.yres << vInfo.xres_virtual << vInfo.yres_virtual
-                 << vInfo.rotate << sunxiCtx.rota << vInfo.bits_per_pixel << fInfo.line_length
-                 << fInfo.smem_len;
-
-        koboDevice->width = vInfo.xres;
-        koboDevice->height = vInfo.yres;
-
-        mDepth = 8;
-        mFormat = QImage::Format_Grayscale8;
-        mBytesPerLine = fInfo.line_length;
-        mGeometry = {0, 0, koboDevice->width, koboDevice->height};
-
-        if (res == EXIT_FAILURE)
-        {
-            qErrnoWarning(errno, "Failed to mmap ion buffer!");
-            return false;
-        }
-
-        mMmap.offset = 0;
-        mMmap.data = fbPtr;
-        mMmap.size = sunxiCtx.alloc_size;
-
-        QFbScreen::initializeCompositor();
-        mFbScreenImage = QImage(mMmap.data, vInfo.xres, vInfo.yres, mBytesPerLine, mFormat);
-
-        qDebug() << "fb info2:" << mGeometry.width() << mGeometry.height() << vInfo.xres << vInfo.yres
-                 << mBytesPerLine << fbPtr << mMmap.data;
+        this->waveFormPartial = WFM_REAGL;
+        this->waveFormFast = WFM_DU;
     }
 
-    //    mCursor = new QFbCursor(this);
-    //    mCursor->setOverrideCursor(Qt::BlankCursor);
+    fbink_cfg.is_verbose = true;
 
-    mTtyFd = openTtyDevice(ttyDevice);
-    if (mTtyFd == -1)
-        qErrnoWarning(errno, "Failed to open tty");
+    fbink_cfg.is_flashing = true;
 
-    //    if (koboDevice->mark <= 7)
-    //    {
-    //        switchToGraphicsMode(mTtyFd, doSwitchToGraphicsMode, &mOldTtyMode);
-    //        blankScreen(mFbFd, false);
-    //    }
+    // Open framebuffer and keep it around, then setup globals.
+    if ((mFbFd = fbink_open()) == EXIT_FAILURE)
+    {
+        fprintf(stderr, "Failed to open the framebuffer, aborting . . .\n");
+        return false;
+    }
+    if (fbink_init(mFbFd, &fbink_cfg) != EXIT_SUCCESS)
+    {
+        fprintf(stderr, "Failed to initialize FBInk, aborting . . .\n");
+        return false;
+    }
 
-    int marker = std::max(getpid(), 123) + 3252;
-    bool wait_refresh_completed = false;
+    qDebug() << "init done!";
 
-    refreshThread.initialize(mFbFd, &sunxiCtx, koboDevice, marker, wait_refresh_completed,
-                             PartialRefreshMode::MixedPartialRefresh, true);
+    fbink_fbdata = fbink_get_fb_data(mFbFd);
+
+    mBytesPerLine = fbink_fbdata.fInfo.line_length;
+    mFormat = QImage::Format_Grayscale8;
+    koboDevice->width = fbink_fbdata.vInfo.xres;
+    koboDevice->height = fbink_fbdata.vInfo.yres;
+    mGeometry = {0, 0, koboDevice->width, koboDevice->height};
+
+    if (!fbink_fbdata.isSunxiDevice)
+    {
+        mMmap.offset = 0;
+        mMmap.data = fbink_fbdata.fbPtr;
+        mMmap.size = fbink_fbdata.fInfo.smem_len;
+    }
+    else
+    {
+        mMmap.offset = 0;
+        mMmap.data = fbink_fbdata.fbPtr;
+        mMmap.size = fbink_fbdata.sunxiCtx.alloc_size;
+    }
+
+    QFbScreen::initializeCompositor();
+    mFbScreenImage = QImage(mMmap.data, mGeometry.width(), mGeometry.height(), mBytesPerLine, mFormat);
+
+    qDebug() << "SI isnull:" << mFbScreenImage.isNull() << fbink_fbdata.fInfo.smem_len
+             << fbink_fbdata.vInfo.xres * fbink_fbdata.vInfo.yres;
 
     if (logicalDpiTarget > 0)
     {
@@ -408,27 +242,51 @@ bool KoboFbScreen::initialize()
 
 void KoboFbScreen::setPartialRefreshMode(PartialRefreshMode partialRefreshMode)
 {
-    this->refreshThread.setPartialRefreshMode(partialRefreshMode);
+    //    this->refreshThread.setPartialRefreshMode(partialRefreshMode);
 }
 
 void KoboFbScreen::setFullScreenRefreshMode(WaveForm waveform)
 {
-    this->refreshThread.setFullScreenRefreshMode(waveform);
+    //    this->refreshThread.setFullScreenRefreshMode(waveform);
 }
 
 void KoboFbScreen::clearScreen(bool waitForCompleted)
 {
-    this->refreshThread.clearScreen(waitForCompleted);
+    FBInkRect r = {0, 0, static_cast<unsigned short>(mGeometry.width()),
+                   static_cast<unsigned short>(mGeometry.height())};
+    fbink_cls(mFbFd, &fbink_cfg, &r, true);
+
+    if (waitForCompleted && koboDevice->hasReliableMxcWaitFor)
+        fbink_wait_for_complete(mFbFd, *fbink_fbdata.lastMarker);
 }
 
 void KoboFbScreen::enableDithering(bool dithering)
 {
-    this->refreshThread.enableDithering(dithering);
+    //    this->refreshThread.enableDithering(dithering);
 }
 
-void KoboFbScreen::doManualRefresh(QRect region)
+void KoboFbScreen::doManualRefresh(const QRect &region)
 {
-    this->refreshThread.refresh(region);
+    bool isFullRefresh =
+        region.width() >= mGeometry.width() - TOLERANCE && region.height() >= mGeometry.height() - TOLERANCE;
+
+    bool isSmall =
+        (region.width() < fastpartialrefreshthreshold && region.height() < fastpartialrefreshthreshold) ||
+        (region.width() + region.height() < fastpartialrefreshthreshold2);
+
+    if (isFullRefresh)
+        fbink_cfg.wfm_mode = this->waveFormFullscreen;
+    else if (isSmall)
+        fbink_cfg.wfm_mode = this->waveFormFast;
+    else
+        fbink_cfg.wfm_mode = this->waveFormPartial;
+
+    fbink_cfg.is_flashing = isFullRefresh;
+
+    fbink_refresh(mFbFd, region.top(), region.left(), region.width(), region.height(), &fbink_cfg);
+
+    if (waitForRefresh && koboDevice->hasReliableMxcWaitFor)
+        fbink_wait_for_complete(mFbFd, *fbink_fbdata.lastMarker);
 }
 
 QRegion KoboFbScreen::doRedraw()
@@ -451,7 +309,8 @@ QRegion KoboFbScreen::doRedraw()
     for (const QRect &rect : touched)
         r = r.united(rect);
 
-    refreshThread.refresh(r);
+    doManualRefresh(r);
+
     qDebug() << "redrawing region" << r << "in" << t.elapsed();
 
     return touched;

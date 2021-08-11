@@ -3,9 +3,9 @@
 
 #include <QtFbSupport/private/qfbscreen_p.h>
 
-#include "eink_sunxi.h"
-#include "einkrefreshthread.h"
+#include "../FBInk/fbink.h"
 #include "kobodevicedescriptor.h"
+#include "refreshmode.h"
 
 class QPainter;
 class QFbCursor;
@@ -26,15 +26,13 @@ public:
 
     void enableDithering(bool dithering);
 
-    void doManualRefresh(QRect region);
+    void doManualRefresh(const QRect &region);
 
     QPixmap grabWindow(WId wid, int x, int y, int width, int height) const override;
 
     QRegion doRedraw() override;
 
 private:
-    EinkrefreshThread refreshThread;
-
     KoboDeviceDescriptor *koboDevice;
 
     QStringList mArgs;
@@ -43,7 +41,6 @@ private:
 
     QImage mFbScreenImage;
     int mBytesPerLine;
-    int mOldTtyMode;
 
     struct
     {
@@ -51,9 +48,14 @@ private:
         int offset, size;
     } mMmap;
 
-    fb_fix_screeninfo fInfo;
-    fb_var_screeninfo vInfo;
-    FBInkKoboSunxi sunxiCtx;
+    FBData fbink_fbdata;
+
+    FBInkConfig fbink_cfg = {0U};
+
+    bool waitForRefresh;
+    WFM_MODE_INDEX_T waveFormFullscreen;
+    WFM_MODE_INDEX_T waveFormPartial;
+    WFM_MODE_INDEX_T waveFormFast;
 
     QPainter *mBlitter;
 };
