@@ -42,6 +42,8 @@ void KoboPlatformIntegration::initialize()
     m_inputContext = QPlatformInputContextFactory::create();
 
     createInputHandlers();
+
+    qWarning("kobofb: Finished initialization.");
 }
 
 bool KoboPlatformIntegration::hasCapability(QPlatformIntegration::Capability cap) const
@@ -105,6 +107,8 @@ void KoboPlatformIntegration::createInputHandlers()
     int touchRangeX = 0;
     int touchRangeY = 0;
 
+    auto screenrot = m_primaryScreen->getScreenRotation();
+
     for (const QString &arg : qAsConst(m_paramList))
     {
         if (arg.contains("debug"))
@@ -139,7 +143,7 @@ void KoboPlatformIntegration::createInputHandlers()
         }
     }
 
-    bool flipTouchscreenAxes = koboDevice.touchscreenSettings.swapXY;
+    bool flipTouchscreenAxes = koboDevice.touchscreenSettings.swapXY ^ (screenrot & 1);
     if (manualRangeFlip)
         flipTouchscreenAxes = !flipTouchscreenAxes;
     if (useHWScreenLimits && touchRangeX == 0)
@@ -161,6 +165,9 @@ void KoboPlatformIntegration::createInputHandlers()
 
     evdevTouchArgs += QString(":screenwidth=%1").arg(koboDevice.width);
     evdevTouchArgs += QString(":screenheight=%1").arg(koboDevice.height);
+
+    evdevTouchArgs += QString(":screenrotation=%1").arg(screenrot * 90);
+
     new QEvdevTouchManager("EvdevTouch", evdevTouchArgs, this);
 
     koboKeyboard = new KoboButtonIntegration(this, koboDevice.ntxDev, debug);

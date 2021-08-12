@@ -231,6 +231,7 @@ QEvdevTouchScreenHandler::QEvdevTouchScreenHandler(const QString &device, const 
     int hw_range_x_max_overwrite = 0;
     int hw_range_y_max_overwrite = 0;
     QRect screenRect;
+    int screenrotation = 0;
     for (int i = 0; i < args.count(); ++i)
     {
         if (args.at(i).startsWith(QLatin1String("screenwidth")))
@@ -251,6 +252,16 @@ QEvdevTouchScreenHandler::QEvdevTouchScreenHandler(const QString &device, const 
             if (ok)
             {
                 screenRect.setHeight(argValue);
+            }
+        }
+        else if (args.at(i).startsWith(QLatin1String("screenrotation")))
+        {
+            QString sArg = args.at(i).section(QLatin1Char('='), 1, 1);
+            bool ok;
+            uint argValue = sArg.toUInt(&ok);
+            if (ok)
+            {
+                screenrotation = argValue;
             }
         }
         else if (args.at(i).startsWith(QLatin1String("hw_range_x_max")))
@@ -395,6 +406,9 @@ QEvdevTouchScreenHandler::QEvdevTouchScreenHandler(const QString &device, const 
 
     if (inverty)
         d->m_rotate *= QTransform::fromTranslate(0.5, 0.5).scale(1.0, -1.0).translate(-0.5, -0.5);
+
+    if (screenrotation > 0)
+        d->m_rotate *= QTransform::fromTranslate(0.5, 0.5).rotate(-screenrotation).translate(-0.5, -0.5);
 
     QTouchOutputMapping mapping;
     if (mapping.load())
