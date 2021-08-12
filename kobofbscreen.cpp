@@ -4,47 +4,19 @@
 
 #include <QtGui/QPainter>
 
-#define fastpartialrefreshthreshold 60
-#define fastpartialrefreshthreshold2 40
-#define TOLERANCE 80
+#define SMALLTHRESHOLD1 60
+#define SMALLTHRESHOLD2 40
+#define FULLSCREENTOLERANCE 80
 
-static bool getScreenInfo(int fbfd, fb_var_screeninfo &vInfo, fb_fix_screeninfo &fInfo)
+static QImage::Format determineFormat(int fbfd, int depth)
 {
-    if (ioctl(fbfd, FBIOGET_FSCREENINFO, &fInfo) != 0)
+    fb_var_screeninfo info;
+    if (ioctl(fbfd, FBIOGET_VSCREENINFO, &info))
     {
-        qErrnoWarning(errno, "Error reading fixed information");
-        return false;
+        return QImage::Format_Invalid;
+        ;
     }
 
-    if (ioctl(fbfd, FBIOGET_VSCREENINFO, &vInfo))
-    {
-        qErrnoWarning(errno, "Error reading variable information");
-        return false;
-    }
-
-    return true;
-}
-
-static int determineDepth(const fb_var_screeninfo &vinfo)
-{
-    int depth = vinfo.bits_per_pixel;
-    if (depth == 24)
-    {
-        depth = vinfo.red.length + vinfo.green.length + vinfo.blue.length;
-        if (depth <= 0)
-            depth = 24;  // reset if color component lengths are not reported
-    }
-    else if (depth == 16)
-    {
-        depth = vinfo.red.length + vinfo.green.length + vinfo.blue.length;
-        if (depth <= 0)
-            depth = 16;
-    }
-    return depth;
-}
-
-static QImage::Format determineFormat(const fb_var_screeninfo &info, int depth)
-{
     const fb_bitfield rgba[4] = {info.red, info.green, info.blue, info.transp};
 
     QImage::Format format = QImage::Format_Invalid;
@@ -143,121 +115,43 @@ static QImage::Format determineFormat(const fb_var_screeninfo &info, int depth)
     return format;
 }
 
-static bool setScreenInfo(int fbFd, uint32_t bpp, int8_t rota, fb_var_screeninfo &vInfo, bool isKindleLegacy)
-{
-    if (bpp >= 8)
-        vInfo.bits_per_pixel = bpp;
-
-        // NOTE: We have to counteract the rotation shenanigans the Kernel might be enforcing...
-        //       c.f., mxc_epdc_fb_check_var @ drivers/video/mxc/mxc_epdc_fb.c OR
-        //       drivers/video/fbdev/mxc/mxc_epdc_v2_fb.c The goal being to end up in the *same* effective
-        //       rotation as before.
-        // First, remember the current rotation as the expected one...
-#if defined(FBINK_FOR_KOBO) || defined(FBINK_FOR_CERVANTES) || defined(FBINK_FOR_KINDLE)
-    uint32_t expected_rota = vInfo.rotate;
-#endif
-    // Then, set the requested rotation, if there was one...
-    if (rota != -1)
-    {
-        vInfo.rotate = (uint32_t)rota;
-        // And flag it as the expected rota for the sanity checks
-#if defined(FBINK_FOR_KOBO) || defined(FBINK_FOR_CERVANTES) || defined(FBINK_FOR_KINDLE)
-        expected_rota = (uint32_t)rota;
-#endif
-    }
-
-    if (ioctl(fbFd, FBIOPUT_VSCREENINFO, &vInfo))
-    {
-        perror("ioctl PUT_V");
-        return false;
-    }
-
-#ifdef FBINK_FOR_KINDLE
-    // Deal once again with einkfb properly...
-    if (isKindleLegacy)
-    {
-        orientation_t orientation = linuxfb_rotate_to_einkfb_orientation(expected_rota);
-        if (ioctl(fbFd, FBIO_EINK_SET_DISPLAY_ORIENTATION, orientation))
-        {
-            perror("ioctl FBIO_EINK_SET_DISPLAY_ORIENTATION");
-            return false;
-        }
-    }
-#endif
-
-#if defined(FBINK_FOR_KOBO) || defined(FBINK_FOR_CERVANTES)
-    // NOTE: Double-check that we weren't bit by rotation quirks...
-    if (vInfo.rotate != expected_rota)
-    {
-        // Brute-force it until it matches...
-        for (uint32_t i = vInfo.rotate, j = FB_ROTATE_UR; j <= FB_ROTATE_CCW; i = (i + 1U) & 3U, j++)
-        {
-            // If we finally got the right orientation, break the loop
-            if (vInfo.rotate == expected_rota)
-            {
-                break;
-            }
-            // Do the i -> i + 1 -> i dance to be extra sure...
-            // (This is useful on devices where the kernel *always* switches to the invert orientation, c.f.,
-            // rota.c)
-            vInfo.rotate = i;
-            if (ioctl(fbFd, FBIOPUT_VSCREENINFO, &vInfo))
-            {
-                perror("ioctl PUT_V");
-                return false;
-            }
-
-            // Don't do anything extra if that was enough...
-            if (vInfo.rotate == expected_rota)
-            {
-                continue;
-            }
-            // Now for i + 1 w/ wraparound, since the valid rotation range is [0..3] (FB_ROTATE_UR to
-            // FB_ROTATE_CCW). (i.e., a Portrait/Landscape swap to counteract potential side-effects of a
-            // kernel-side mandatory invert)
-            uint32_t n = (i + 1U) & 3U;
-            vInfo.rotate = n;
-            if (ioctl(fbFd, FBIOPUT_VSCREENINFO, &vInfo))
-            {
-                perror("ioctl PUT_V");
-                return false;
-            }
-
-            // And back to i, if need be...
-            if (vInfo.rotate == expected_rota)
-            {
-                continue;
-            }
-            vInfo.rotate = i;
-            if (ioctl(fbFd, FBIOPUT_VSCREENINFO, &vInfo))
-            {
-                perror("ioctl PUT_V");
-                return false;
-            }
-        }
-    }
-#endif
-
-#ifdef FBINK_FOR_KINDLE
-    // And, again, einkfb is a special snowflake...
-    if (isKindleLegacy)
-    {
-        orientation_t orientation = orientation_portrait;
-        if (ioctl(fbFd, FBIO_EINK_GET_DISPLAY_ORIENTATION, &orientation))
-        {
-            perror("ioctl FBIO_EINK_GET_DISPLAY_ORIENTATION");
-            return false;
-        }
-    }
-#endif
-    return true;
-}
-
 KoboFbScreen::KoboFbScreen(const QStringList &args, KoboDeviceDescriptor *koboDevice)
-    : koboDevice(koboDevice), mArgs(args), mFbFd(-1), mBlitter(0)
+    : koboDevice(koboDevice),
+      mArgs(args),
+      mFbFd(-1),
+      mFbScreenImage(),
+      mBytesPerLine(0),
+      fbink_state({0}),
+      fbinkFbInfo({0}),
+      fbink_cfg({0}),
+      waitForRefresh(false),
+      useHardwareDithering(false),
+      mBlitter(0)
 {
-    mMmap.data = 0;
+    // force the compiler to link i2c-tools; there must be a better way...
     i2c_smbus_read_byte_data(0, 0);
+
+    waitForRefresh = false;
+    useHardwareDithering = false;
+    waveFormFullscreen = WFM_GC16;
+    waveFormPartial = WFM_AUTO;
+    waveFormFast = WFM_A2;
+
+    if (koboDevice->isREAGL)
+    {
+        this->waveFormPartial = WFM_REAGLD;
+        this->waveFormFast = WFM_DU;
+    }
+    else if (koboDevice->mark == 7)
+    {
+        this->waveFormPartial = WFM_REAGL;
+        this->waveFormFast = WFM_DU;
+    }
+    else if (koboDevice->isSunxi)
+    {
+        this->waveFormPartial = WFM_REAGL;
+        this->waveFormFast = WFM_DU;
+    }
 }
 
 KoboFbScreen::~KoboFbScreen()
@@ -292,58 +186,27 @@ bool KoboFbScreen::initialize()
             logicalDpiTarget = match.captured(1).toInt();
     }
 
-    waitForRefresh = false;
-    useHardwareDithering = false;
-    waveFormFullscreen = WFM_GC16;
-    waveFormPartial = WFM_AUTO;
-    waveFormFast = WFM_A2;
-
-    if (koboDevice->isREAGL)
-    {
-        this->waveFormPartial = WFM_REAGLD;
-        this->waveFormFast = WFM_DU;
-    }
-    else if (koboDevice->mark == 7)
-    {
-        this->waveFormPartial = WFM_REAGL;
-        this->waveFormFast = WFM_DU;
-    }
-    else if (koboDevice->isSunxi)
-    {
-        this->waveFormPartial = WFM_REAGL;
-        this->waveFormFast = WFM_DU;
-    }
-
-    fbink_cfg.is_verbose = false;
+    fbink_cfg.is_verbose = true;
 
     // Open framebuffer and keep it around, then setup globals.
     if ((mFbFd = fbink_open()) == EXIT_FAILURE)
     {
-        qDebug() << stderr << "Failed to open the framebuffer";
+        qDebug() << "Failed to open the framebuffer";
         return false;
     }
 
     if (fbink_init(mFbFd, &fbink_cfg) != EXIT_SUCCESS)
     {
-        qDebug() << stderr << "Failed to initialize FBInk.";
+        qDebug() << "Failed to initialize FBInk.";
         return false;
     }
-
-    if (!getScreenInfo(mFbFd, vInfo, fInfo))
-    {
-        qDebug() << "Failed to get fb info";
-        return false;
-    }
-
-    mDepth = determineDepth(vInfo);
-    mFormat = determineFormat(vInfo, mDepth);
 
     setScreenRotation(RotationUR);
 
     QFbScreen::initializeCompositor();
 
-    qDebug() << "setting rotation" << vInfo.rotate;
-    qDebug() << "SI isnull:" << mFbScreenImage.isNull() << fInfo.smem_len << vInfo.xres * vInfo.yres;
+    qDebug() << "SI isnull:" << mFbScreenImage.isNull() << fbink_state.screen_width
+             << fbink_state.screen_height;
 
     if (logicalDpiTarget > 0)
     {
@@ -357,50 +220,46 @@ bool KoboFbScreen::initialize()
 
 bool KoboFbScreen::setScreenRotation(ScreenRotation r)
 {
-    if (!getScreenInfo(mFbFd, vInfo, fInfo))
+    int8_t rota_native = fbink_rota_canonical_to_native(r);
+    int bpp = 8;
+
+    if (fbink_set_fb_info(mFbFd, bpp, rota_native, -1, &fbink_cfg) != EXIT_SUCCESS)
     {
-        qDebug() << "Failed to get fb info";
+        qDebug() << "Failed to set rotation and bpp.";
         return false;
     }
-
-    if (!setScreenInfo(mFbFd, 0, fbink_rota_canonical_to_native(r), vInfo, fbink_state.is_kindle_legacy))
-    {
-        qDebug() << "Failed to set fb info";
-        return false;
-    }
-
-    fbink_reinit(mFbFd, &fbink_cfg);
 
     fbink_get_state(&fbink_cfg, &fbink_state);
 
-    mBytesPerLine = fInfo.line_length;
+    mBytesPerLine = fbink_state.screen_stride;
     koboDevice->width = fbink_state.screen_width;
     koboDevice->height = fbink_state.screen_height;
+
+    qDebug() << "screen info:" << fbink_state.screen_width << fbink_state.screen_height
+             << fbink_state.screen_stride << fbink_state.current_rota
+             << fbink_rota_native_to_canonical(fbink_state.current_rota) << fbink_state.bpp;
+
     mGeometry = {0, 0, koboDevice->width, koboDevice->height};
 
     mPhysicalSize = QSizeF(koboDevice->physicalWidth, koboDevice->physicalHeight);
 
-    if (fbink_get_fb_data(mFbFd, &fbink_fbdata) != EXIT_SUCCESS)
+    if (fbink_get_fb_pointer(mFbFd, &fbinkFbInfo) != EXIT_SUCCESS)
     {
         qDebug() << stderr << "Failed to get fb data or memmap screen";
         return false;
     }
 
-    mMmap.offset = 0;
-    mMmap.data = fbink_fbdata.fbPtr;
-    mMmap.size = fbink_fbdata.allocationSize;
+    mDepth = fbink_state.bpp;
+    mFormat = determineFormat(mFbFd, mDepth);
 
-    mFbScreenImage = QImage(mMmap.data, mGeometry.width(), mGeometry.height(), mBytesPerLine, mFormat);
+    mFbScreenImage = QImage(fbinkFbInfo.fbPtr, mGeometry.width(), mGeometry.height(), mBytesPerLine, mFormat);
 
     return true;
 }
 
 ScreenRotation KoboFbScreen::getScreenRotation()
 {
-    if (!getScreenInfo(mFbFd, vInfo, fInfo))
-        return RotationUR;
-
-    return (ScreenRotation)fbink_rota_native_to_canonical(vInfo.rotate);
+    return (ScreenRotation)fbink_rota_native_to_canonical(fbink_state.current_rota);
 }
 
 void KoboFbScreen::setPartialRefreshMode(PartialRefreshMode partialRefreshMode)
@@ -415,12 +274,12 @@ void KoboFbScreen::setFullScreenRefreshMode(WaveForm waveform)
 
 void KoboFbScreen::clearScreen(bool waitForCompleted)
 {
-    //    FBInkRect r = {0, 0, static_cast<unsigned short>(mGeometry.width()),
-    //                   static_cast<unsigned short>(mGeometry.height())};
-    //    fbink_cls(mFbFd, &fbink_cfg, &r, true);
+    FBInkRect r = {0, 0, static_cast<unsigned short>(mGeometry.width()),
+                   static_cast<unsigned short>(mGeometry.height())};
+    fbink_cls(mFbFd, &fbink_cfg, &r, true);
 
-    //    if (waitForCompleted && koboDevice->hasReliableMxcWaitFor)
-    //        fbink_wait_for_complete(mFbFd, LAST_MARKER);
+    if (waitForCompleted && koboDevice->hasReliableMxcWaitFor)
+        fbink_wait_for_complete(mFbFd, LAST_MARKER);
 }
 
 void KoboFbScreen::enableDithering(bool dithering)
@@ -430,12 +289,11 @@ void KoboFbScreen::enableDithering(bool dithering)
 
 void KoboFbScreen::doManualRefresh(const QRect &region)
 {
-    bool isFullRefresh =
-        region.width() >= mGeometry.width() - TOLERANCE && region.height() >= mGeometry.height() - TOLERANCE;
+    bool isFullRefresh = region.width() >= mGeometry.width() - FULLSCREENTOLERANCE &&
+                         region.height() >= mGeometry.height() - FULLSCREENTOLERANCE;
 
-    bool isSmall =
-        (region.width() < fastpartialrefreshthreshold && region.height() < fastpartialrefreshthreshold) ||
-        (region.width() + region.height() < fastpartialrefreshthreshold2);
+    bool isSmall = (region.width() < SMALLTHRESHOLD1 && region.height() < SMALLTHRESHOLD1) ||
+                   (region.width() + region.height() < SMALLTHRESHOLD2);
 
     if (isFullRefresh)
         fbink_cfg.wfm_mode = this->waveFormFullscreen;

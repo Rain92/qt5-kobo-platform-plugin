@@ -58,19 +58,10 @@ private:
     QImage mFbScreenImage;
     int mBytesPerLine;
 
-    struct
-    {
-        uchar *data;
-        int offset, size;
-    } mMmap;
-
-    fb_var_screeninfo vInfo;
-    fb_fix_screeninfo fInfo;
-
     FBInkState fbink_state;
-    FBData fbink_fbdata;
+    FBPtrInfo fbinkFbInfo;
 
-    FBInkConfig fbink_cfg = {0U};
+    FBInkConfig fbink_cfg;
 
     bool waitForRefresh;
     bool useHardwareDithering;
