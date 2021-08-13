@@ -4,12 +4,7 @@
 #include <QtFbSupport/private/qfbscreen_p.h>
 #include <sys/ioctl.h>
 
-extern "C"
-{
-#include <i2c/smbus.h>
-}
-
-#include "../FBInk/fbink.h"
+#include "fbink.h"
 #include "kobodevicedescriptor.h"
 #include "refreshmode.h"
 

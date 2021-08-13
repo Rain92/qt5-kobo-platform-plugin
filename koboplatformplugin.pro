@@ -1,10 +1,10 @@
 TARGET = kobo
 
+QTDIR = /mnt/onboard/.adds/qt-linux-5.15-kde-kobo
+CROSS_TC = arm-kobo-linux-gnueabihf
+
 TEMPLATE = lib
 CONFIG += plugin
-
-
-DEFINES += FBINK_FOR_KOBO
 
 DEFINES += QT_NO_FOREACH
 
@@ -15,7 +15,31 @@ QT +=  widgets \
     service_support-private eventdispatcher_support-private \
     fontdatabase_support-private fb_support-private devicediscovery_support-private testlib
 
-LIBS += -l:libi2c.a -L/home/andreas/Desktop/qtproject/FBInk/Debug -l:libfbink.a
+
+# FBINK
+DEFINES += FBINK_FOR_KOBO
+FBInkBuildEvent.input = ./FBink/*.c ./FBink/*.h
+PHONY_DEPS = .
+FBInkBuildEvent.input = PHONY_DEPS
+FBInkBuildEvent.output = FBInk
+FBInkBuildEvent.clean_commands = make -C $$PWD/FBInk clean distclean
+
+FBInkBuildEvent.name = building FBInk
+FBInkBuildEvent.CONFIG += no_link target_predeps
+QMAKE_EXTRA_COMPILERS += FBInkBuildEvent
+
+INCLUDEPATH += $$PWD/FBInk $$PWD/FBInk/ $$PWD/FBInk/libi2c-staged/include/
+LIBS += -L$$PWD/FBInk/libi2c-staged/lib/ -l:libi2c.a
+
+CONFIG(debug, debug|release) {
+    FBInkBuildEvent.commands = CROSS_TC=$$CROSS_TC MINIMAL=1 DEBUG=1 KOBO=true make -C $$PWD/FBInk libi2c.built pic
+    LIBS += -L$$PWD/FBInk/Debug -l:libfbink.a
+}
+
+CONFIG(release, debug|release) {
+FBInkBuildEvent.commands = CROSS_TC=$$CROSS_TC MINIMAL=1 KOBO=true make -C $$PWD/FBInk libi2c.built pic
+    LIBS += -L$$PWD/FBInk/Debug -l:libfbink.a
+}
 
 
 SOURCES = main.cpp \
@@ -49,7 +73,7 @@ HEADERS = devicehandlerlist_p.h \
 
 OTHER_FILES += \
 
-target.path = /mnt/onboard/.adds/qt-linux-5.15-kde-kobo/plugins/platforms
+target.path =$$QTDIR/plugins/platforms
 INSTALLS += target
 
 DISTFILES += \
@@ -57,3 +81,4 @@ DISTFILES += \
 
 RESOURCES += \
     Resources.qrc
+

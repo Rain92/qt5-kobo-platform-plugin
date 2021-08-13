@@ -4,6 +4,13 @@
 
 #include <QtGui/QPainter>
 
+// force the compiler to link i2c-tools
+extern "C"
+{
+#include "i2c/smbus.h"
+    __s32 (*i2c_smbus_read_byte_fp)(int) = &i2c_smbus_read_byte;
+}
+
 #define SMALLTHRESHOLD1 60
 #define SMALLTHRESHOLD2 40
 #define FULLSCREENTOLERANCE 80
@@ -128,9 +135,6 @@ KoboFbScreen::KoboFbScreen(const QStringList &args, KoboDeviceDescriptor *koboDe
       useHardwareDithering(false),
       mBlitter(0)
 {
-    // force the compiler to link i2c-tools; there must be a better way...
-    i2c_smbus_read_byte_data(0, 0);
-
     waitForRefresh = false;
     useHardwareDithering = false;
     waveFormFullscreen = WFM_GC16;

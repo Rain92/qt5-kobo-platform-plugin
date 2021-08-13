@@ -1,7 +1,7 @@
 #ifndef REFRESHMODE_H
 #define REFRESHMODE_H
 
-#include "../FBInk/eink/mxcfb-kobo.h"
+#include "eink/mxcfb-kobo.h"
 
 enum PartialRefreshMode
 {
