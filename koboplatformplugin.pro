@@ -15,20 +15,21 @@ QT +=  widgets \
     service_support-private eventdispatcher_support-private \
     fontdatabase_support-private fb_support-private devicediscovery_support-private testlib
 
+INCLUDEPATH += $$PWD/src
 
 # FBINK
 DEFINES += FBINK_FOR_KOBO
-FBInkBuildEvent.input = ./FBink/*.c ./FBink/*.h
+FBInkBuildEvent.input = $$PWD/FBink/*.c $$PWD/FBink/*.h
 PHONY_DEPS = .
 FBInkBuildEvent.input = PHONY_DEPS
 FBInkBuildEvent.output = FBInk
-FBInkBuildEvent.clean_commands = make -C $$PWD/FBInk clean distclean
+FBInkBuildEvent.clean_commands = make -C $$PWD/FBInk clean
 
 FBInkBuildEvent.name = building FBInk
 FBInkBuildEvent.CONFIG += no_link target_predeps
 QMAKE_EXTRA_COMPILERS += FBInkBuildEvent
 
-INCLUDEPATH += $$PWD/FBInk $$PWD/FBInk/ $$PWD/FBInk/libi2c-staged/include/
+INCLUDEPATH += $$PWD/FBInk $$PWD/FBInk/libi2c-staged/include
 LIBS += -L$$PWD/FBInk/libi2c-staged/lib/ -l:libi2c.a
 
 CONFIG(debug, debug|release) {
@@ -42,33 +43,33 @@ FBInkBuildEvent.commands = CROSS_TC=$$CROSS_TC MINIMAL=1 KOBO=true make -C $$PWD
 }
 
 
-SOURCES = main.cpp \
-          kobobuttonintegration.cpp \
-          kobodevicedescriptor.cpp \
-          kobofbscreen.cpp \
-          koboplatformadditions.cpp \
-          koboplatformintegration.cpp \
-          kobowifimanager.cpp \
-          qevdevtouchmanager.cpp \
-          qevdevtouchhandler.cpp \ 
-          qtouchoutputmapping.cpp \
-          qevdevutil.cpp
+SOURCES = src/main.cpp \
+          src/kobobuttonintegration.cpp \
+          src/kobodevicedescriptor.cpp \
+          src/kobofbscreen.cpp \
+          src/koboplatformadditions.cpp \
+          src/koboplatformintegration.cpp \
+          src/kobowifimanager.cpp \
+          src/qevdevtouchmanager.cpp \
+          src/qevdevtouchhandler.cpp \
+          src/qtouchoutputmapping.cpp \
+          src/qevdevutil.cpp
 
-HEADERS = devicehandlerlist_p.h \
-          kobobuttonintegration.h \
-          kobodevicedescriptor.h \
-          kobofbscreen.h \
-          kobokey.h \
-          koboplatformadditions.h \
-          koboplatformfunctions.h \
-          koboplatformintegration.h \
-          kobowifimanager.h \
-          qevdevtouchfilter_p.h \
-          qevdevtouchhandler_p.h \
-          qevdevtouchmanager_p.h \
-          qevdevutil_p.h \
-          qtouchoutputmapping_p.h \
-          refreshmode.h
+HEADERS = src/devicehandlerlist_p.h \
+          src/kobobuttonintegration.h \
+          src/kobodevicedescriptor.h \
+          src/kobofbscreen.h \
+          src/kobokey.h \
+          src/koboplatformadditions.h \
+          src/koboplatformfunctions.h \
+          src/koboplatformintegration.h \
+          src/kobowifimanager.h \
+          src/qevdevtouchfilter_p.h \
+          src/qevdevtouchhandler_p.h \
+          src/qevdevtouchmanager_p.h \
+          src/qevdevutil_p.h \
+          src/qtouchoutputmapping_p.h \
+          src/refreshmode.h
 
 
 OTHER_FILES += \
