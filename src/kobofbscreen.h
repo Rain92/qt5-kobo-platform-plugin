@@ -4,6 +4,7 @@
 #include <QtFbSupport/private/qfbscreen_p.h>
 #include <sys/ioctl.h>
 
+#include "eink/mxcfb-kobo.h"
 #include "fbink.h"
 #include "kobodevicedescriptor.h"
 #include "refreshmode.h"
