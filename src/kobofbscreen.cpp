@@ -252,6 +252,8 @@ void KoboFbScreen::ditherRegion(const QRect &region)
 
     ditherBuffer(mScreenImageDither.bits() + offset, mScreenImage.bits() + offset, mScreenImage.width(),
                  updateHeight);
+    //    ditherFloydSteinberg(mScreenImageDither.bits() + offset, mScreenImage.bits() + offset,
+    //                         mScreenImage.width(), updateHeight);
 }
 
 void KoboFbScreen::doManualRefresh(const QRect &region)

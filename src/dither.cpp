@@ -163,3 +163,97 @@ void ditherBufferInplace(uint8_t* buffer, int width, int height)
     dither_fallback(buffer, buffer, width, height);
 #endif
 }
+
+const uint8_t VALUES_12BPP[] = {0, 17, 34, 51, 68, 85, 102, 119, 136, 153, 170, 187, 204, 221, 238, 255};
+
+#define MIN(a, b) (((a) < (b)) ? (a) : (b))
+#define MAX(a, b) (((a) > (b)) ? (a) : (b))
+#define CLAMP(x, xmin, xmax) \
+    (x) = MAX((xmin), (x));  \
+    (x) = MIN((xmax), (x))
+#define CLAMPED(x, xmin, xmax) MAX((xmin), MIN((xmax), (x)))
+
+//	Floyd-Steinberg dither uses constants 7/16 5/16 3/16 and 1/16
+//	But instead of using real arythmetic, I will use integer on by
+//	applying shifting ( << 8 )
+//	When use the constants, don't foget to shift back the result ( >> 8 )
+#define f7_16 112  // const int	f7	= (7 << 8) / 16;
+#define f5_16 80   // const int	f5	= (5 << 8) / 16;
+#define f3_16 48   // const int	f3	= (3 << 8) / 16;
+#define f1_16 16   // const int	f1	= (1 << 8) / 16;
+
+/////////////////////////////////////////////////////////////////////////////
+
+//#define	FS_COEF( v, err )	(( ((err) * ((v) * 100)) / 16) / 100)
+//#define	FS_COEF( v, err )	(( ((err) * ((v) << 8)) >> 4) >> 8)
+#define FS_COEF(v, err) (((err) * ((v) << 8)) >> 12)
+
+#define SIERRA_LITE_COEF(v, err) ((((err) * ((v) << 8)) >> 2) >> 8)
+
+#define SIERRA_COEF(v, err) ((((err) * ((v) << 8)) >> 5) >> 8)
+
+#include <stdlib.h>
+
+#include <cstring>
+
+//	Color Floyd-Steinberg dither using 4 bit per color plane
+void ditherFloydSteinberg(uint8_t* dst, uint8_t* src, int width, int height)
+{
+    const int size = width * height;
+
+    int* errorB = (int*)malloc(size * sizeof(int));
+
+    //	Clear the errors buffer.
+    memset(errorB, 0, size * sizeof(int));
+    //~~~~~~~~
+
+    int i = 0;
+
+    for (int y = 0; y < height; y++)
+    {
+        uint8_t* prow = src + (y * width);
+        uint8_t* prowo = dst + (y * width);
+
+        for (int x = 0; x < width; x++, i++)
+        {
+            const int inc = prow[x];
+
+            int newValB = (int)inc + (errorB[i] >> 8);  //	PixelBlue  + error correctionB
+
+            //	The error could produce values beyond the borders, so need to keep the color in range
+            int idxB = CLAMPED(newValB, 0, 255);
+
+            int newcB = VALUES_12BPP[idxB >> 4];  //	x >> 4 is the same as x / 16
+
+            prowo[x] = newcB;
+
+            int cerrorB = newValB - newcB;
+
+            int idx = i + 1;
+            if (x + 1 < width)
+            {
+                errorB[idx] += (cerrorB * f7_16);
+            }
+
+            idx += width - 2;
+            if (x - 1 > 0 && y + 1 < height)
+            {
+                errorB[idx] += (cerrorB * f3_16);
+            }
+
+            idx++;
+            if (y + 1 < height)
+            {
+                errorB[idx] += (cerrorB * f5_16);
+            }
+
+            idx++;
+            if (x + 1 < width && y + 1 < height)
+            {
+                errorB[idx] += (cerrorB * f1_16);
+            }
+        }
+    }
+
+    free(errorB);
+}

@@ -8,4 +8,6 @@
 void ditherBuffer(uint8_t* bufferDst, uint8_t* bufferSrc, int width, int height);
 void ditherBufferInplace(uint8_t* buffer, int width, int height);
 
+void ditherFloydSteinberg(uint8_t* dst, uint8_t* src, int width, int height);
+
 #endif  // DITHER_H
