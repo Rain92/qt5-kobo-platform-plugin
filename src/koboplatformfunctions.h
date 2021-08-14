@@ -5,8 +5,8 @@
 #include <QtCore/QByteArray>
 #include <QtGui/QGuiApplication>
 
+#include "einkenums.h"
 #include "kobodevicedescriptor.h"
-#include "refreshmode.h"
 
 class KoboPlatformFunctions
 {

@@ -3,8 +3,8 @@
 
 #include <QObject>
 
+#include "einkenums.h"
 #include "kobodevicedescriptor.h"
-#include "kobokey.h"
 
 class KoboPlatformAdditions : public QObject
 {

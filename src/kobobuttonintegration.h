@@ -11,7 +11,7 @@
 #include <QSocketNotifier>
 #include <iostream>
 
-#include "kobokey.h"
+#include "einkenums.h"
 
 class KoboButtonIntegration : public QObject
 {

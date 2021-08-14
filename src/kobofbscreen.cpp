@@ -19,10 +19,7 @@ static QImage::Format determineFormat(int fbfd, int depth)
 {
     fb_var_screeninfo info;
     if (ioctl(fbfd, FBIOGET_VSCREENINFO, &info))
-    {
         return QImage::Format_Invalid;
-        ;
-    }
 
     const fb_bitfield rgba[4] = {info.red, info.green, info.blue, info.transp};
 
@@ -336,36 +333,7 @@ QRegion KoboFbScreen::doRedraw()
 
     doManualRefresh(r);
 
-    //    qDebug() << "redrawing region" << r << "in" << t.elapsed();
+    //    qDebug() << "redrawing region" << r << touched << "in" << t.elapsed();
 
     return touched;
-}
-
-// grabWindow() grabs "from the screen" not from the backingstores.
-// In linuxfb's case it will also include the mouse cursor.
-QPixmap KoboFbScreen::grabWindow(WId wid, int x, int y, int width, int height) const
-{
-    if (!wid)
-    {
-        if (width < 0)
-            width = mFbScreenImage.width() - x;
-        if (height < 0)
-            height = mFbScreenImage.height() - y;
-        return QPixmap::fromImage(mFbScreenImage).copy(x, y, width, height);
-    }
-
-    QFbWindow *window = windowForId(wid);
-    if (window)
-    {
-        const QRect geom = window->geometry();
-        if (width < 0)
-            width = geom.width() - x;
-        if (height < 0)
-            height = geom.height() - y;
-        QRect rect(geom.topLeft() + QPoint(x, y), QSize(width, height));
-        rect &= window->geometry();
-        return QPixmap::fromImage(mFbScreenImage).copy(rect);
-    }
-
-    return QPixmap();
 }

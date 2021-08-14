@@ -56,10 +56,10 @@ SOURCES = src/main.cpp \
           src/qevdevutil.cpp
 
 HEADERS = src/devicehandlerlist_p.h \
+          src/einkenums.h \
           src/kobobuttonintegration.h \
           src/kobodevicedescriptor.h \
           src/kobofbscreen.h \
-          src/kobokey.h \
           src/koboplatformadditions.h \
           src/koboplatformfunctions.h \
           src/koboplatformintegration.h \
@@ -68,8 +68,7 @@ HEADERS = src/devicehandlerlist_p.h \
           src/qevdevtouchhandler_p.h \
           src/qevdevtouchmanager_p.h \
           src/qevdevutil_p.h \
-          src/qtouchoutputmapping_p.h \
-          src/refreshmode.h
+          src/qtouchoutputmapping_p.h
 
 
 OTHER_FILES += \

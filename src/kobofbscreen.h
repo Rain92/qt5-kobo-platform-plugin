@@ -5,17 +5,9 @@
 #include <sys/ioctl.h>
 
 #include "eink/mxcfb-kobo.h"
+#include "einkenums.h"
 #include "fbink.h"
 #include "kobodevicedescriptor.h"
-#include "refreshmode.h"
-
-enum ScreenRotation
-{
-    RotationUR = FB_ROTATE_UR,
-    RotationCW = FB_ROTATE_CW,
-    RotationUD = FB_ROTATE_UD,
-    RotationCCW = FB_ROTATE_CCW
-};
 
 class QPainter;
 class QFbCursor;
@@ -40,8 +32,6 @@ public:
 
     bool setScreenRotation(ScreenRotation r);
     ScreenRotation getScreenRotation();
-
-    QPixmap grabWindow(WId wid, int x, int y, int width, int height) const override;
 
     QRegion doRedraw() override;
 
