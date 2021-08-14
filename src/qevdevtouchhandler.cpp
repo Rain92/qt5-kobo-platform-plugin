@@ -222,7 +222,7 @@ QEvdevTouchScreenHandler::QEvdevTouchScreenHandler(const QString &device, const 
 {
     setObjectName(QLatin1String("Evdev Touch Handler"));
 
-    qDebug() << spec;
+    qCDebug(qLcEvdevTouch) << spec;
 
     const QStringList args = spec.split(QLatin1Char(':'));
     bool swapxy = false;

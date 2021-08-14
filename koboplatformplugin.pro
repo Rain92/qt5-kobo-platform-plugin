@@ -39,11 +39,12 @@ CONFIG(debug, debug|release) {
 
 CONFIG(release, debug|release) {
 FBInkBuildEvent.commands = CROSS_TC=$$CROSS_TC MINIMAL=1 KOBO=true make -C $$PWD/FBInk libi2c.built pic
-    LIBS += -L$$PWD/FBInk/Debug -l:libfbink.a
+    LIBS += -L$$PWD/FBInk/Release -l:libfbink.a
 }
 
 
 SOURCES = src/main.cpp \
+          src/dither.cpp \
           src/kobobuttonintegration.cpp \
           src/kobodevicedescriptor.cpp \
           src/kobofbscreen.cpp \
@@ -56,6 +57,7 @@ SOURCES = src/main.cpp \
           src/qevdevutil.cpp
 
 HEADERS = src/devicehandlerlist_p.h \
+          src/dither.h \
           src/einkenums.h \
           src/kobobuttonintegration.h \
           src/kobodevicedescriptor.h \

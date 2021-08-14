@@ -21,13 +21,6 @@ static const QMap<int, KoboKey> KoboPhysicalKeyMap = {
     {194, Key_PageForward}, {331, Key_Eraser},    {332, Key_Highlighter},
 };
 
-enum PartialRefreshMode
-{
-    AccuratePartialRefresh = 0,
-    FastPartialRefresh,
-    MixedPartialRefresh
-};
-
 enum ScreenRotation
 {
     RotationUR = 0,

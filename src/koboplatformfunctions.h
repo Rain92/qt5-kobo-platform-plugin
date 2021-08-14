@@ -48,17 +48,6 @@ public:
             func(val, temp);
     }
 
-    typedef void (*setPartialRefreshModeType)(PartialRefreshMode partialRefreshMode);
-    static QByteArray setPartialRefreshModeIdentifier() { return QByteArrayLiteral("setPartialRefreshMode"); }
-
-    static void setPartialRefreshMode(PartialRefreshMode partialRefreshMode)
-    {
-        auto func = reinterpret_cast<setPartialRefreshModeType>(
-            QGuiApplication::platformFunction(setPartialRefreshModeIdentifier()));
-        if (func)
-            func(partialRefreshMode);
-    }
-
     typedef void (*setFullScreenRefreshModeType)(WaveForm waveform);
     static QByteArray setFullScreenRefreshModeIdentifier()
     {
@@ -84,15 +73,15 @@ public:
             func(waitForCompleted);
     }
 
-    typedef void (*enableDitheringType)(bool dithering);
+    typedef void (*enableDitheringType)(bool softwareDithering, bool hardwareDithering);
     static QByteArray enableDitheringIdentifier() { return QByteArrayLiteral("enableDithering"); }
 
-    static void enableDithering(bool dithering)
+    static void enableDithering(bool softwareDithering, bool hardwareDithering)
     {
         auto func = reinterpret_cast<enableDitheringType>(
             QGuiApplication::platformFunction(enableDitheringIdentifier()));
         if (func)
-            func(dithering);
+            func(softwareDithering, hardwareDithering);
     }
 
     typedef void (*doManualRefreshType)(QRect region);

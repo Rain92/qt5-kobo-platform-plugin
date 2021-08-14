@@ -61,56 +61,8 @@ static QImage::Format determineFormat(int fbfd, int depth)
             }
             break;
         }
-        case 18:
-        {
-            const fb_bitfield rgb666[4] = {{12, 6, 0}, {6, 6, 0}, {0, 6, 0}, {0, 0, 0}};
-            if (memcmp(rgba, rgb666, 3 * sizeof(fb_bitfield)) == 0)
-                format = QImage::Format_RGB666;
-            break;
-        }
-        case 16:
-        {
-            const fb_bitfield rgb565[4] = {{11, 5, 0}, {5, 6, 0}, {0, 5, 0}, {0, 0, 0}};
-            const fb_bitfield bgr565[4] = {{0, 5, 0}, {5, 6, 0}, {11, 5, 0}, {0, 0, 0}};
-            if (memcmp(rgba, rgb565, 3 * sizeof(fb_bitfield)) == 0)
-            {
-                format = QImage::Format_RGB16;
-            }
-            else if (memcmp(rgba, bgr565, 3 * sizeof(fb_bitfield)) == 0)
-            {
-                format = QImage::Format_RGB16;
-                // pixeltype = BGRPixel;
-            }
-            break;
-        }
-        case 15:
-        {
-            const fb_bitfield rgb1555[4] = {{10, 5, 0}, {5, 5, 0}, {0, 5, 0}, {15, 1, 0}};
-            const fb_bitfield bgr1555[4] = {{0, 5, 0}, {5, 5, 0}, {10, 5, 0}, {15, 1, 0}};
-            if (memcmp(rgba, rgb1555, 3 * sizeof(fb_bitfield)) == 0)
-            {
-                format = QImage::Format_RGB555;
-            }
-            else if (memcmp(rgba, bgr1555, 3 * sizeof(fb_bitfield)) == 0)
-            {
-                format = QImage::Format_RGB555;
-                // pixeltype = BGRPixel;
-            }
-            break;
-        }
-        case 12:
-        {
-            const fb_bitfield rgb444[4] = {{8, 4, 0}, {4, 4, 0}, {0, 4, 0}, {0, 0, 0}};
-            if (memcmp(rgba, rgb444, 3 * sizeof(fb_bitfield)) == 0)
-                format = QImage::Format_RGB444;
-            break;
-        }
         case 8:
             format = QImage::Format_Grayscale8;
-            //            qDebug() << "Using grayscale format.";
-            break;
-        case 1:
-            format = QImage::Format_Mono;  //###: LSB???
             break;
         default:
             break;
@@ -123,6 +75,7 @@ KoboFbScreen::KoboFbScreen(const QStringList &args, KoboDeviceDescriptor *koboDe
     : koboDevice(koboDevice),
       mArgs(args),
       mFbFd(-1),
+      debug(false),
       mFbScreenImage(),
       mBytesPerLine(0),
       fbink_state({0}),
@@ -130,6 +83,7 @@ KoboFbScreen::KoboFbScreen(const QStringList &args, KoboDeviceDescriptor *koboDe
       fbink_cfg({0}),
       waitForRefresh(false),
       useHardwareDithering(false),
+      useSoftwareDithering(true),
       mBlitter(0)
 {
     waitForRefresh = false;
@@ -185,6 +139,8 @@ bool KoboFbScreen::initialize()
             fbDevice = match.captured(1);
         else if (arg.contains(dpiRx, &match))
             logicalDpiTarget = match.captured(1).toInt();
+        else if (arg.startsWith("debug"))
+            debug = true;
     }
 
     fbink_cfg.is_verbose = true;
@@ -206,8 +162,8 @@ bool KoboFbScreen::initialize()
 
     QFbScreen::initializeCompositor();
 
-    qDebug() << "SI isnull:" << mFbScreenImage.isNull() << fbink_state.screen_width
-             << fbink_state.screen_height;
+    if (mFbScreenImage.isNull())
+        qDebug() << "Error, mFbScreenImage is invalid!";
 
     if (logicalDpiTarget > 0)
     {
@@ -236,9 +192,10 @@ bool KoboFbScreen::setScreenRotation(ScreenRotation r)
     koboDevice->width = fbink_state.screen_width;
     koboDevice->height = fbink_state.screen_height;
 
-    qDebug() << "screen info:" << fbink_state.screen_width << fbink_state.screen_height
-             << fbink_state.screen_stride << fbink_state.current_rota
-             << fbink_rota_native_to_canonical(fbink_state.current_rota) << fbink_state.bpp;
+    if (debug)
+        qDebug() << "screen info:" << fbink_state.screen_width << fbink_state.screen_height
+                 << fbink_state.screen_stride << fbink_state.current_rota
+                 << fbink_rota_native_to_canonical(fbink_state.current_rota) << fbink_state.bpp;
 
     mGeometry = {0, 0, koboDevice->width, koboDevice->height};
 
@@ -246,7 +203,7 @@ bool KoboFbScreen::setScreenRotation(ScreenRotation r)
 
     if (fbink_get_fb_pointer(mFbFd, &fbinkFbInfo) != EXIT_SUCCESS)
     {
-        qDebug() << stderr << "Failed to get fb data or memmap screen";
+        qDebug() << "Failed to get fb data or memmap screen";
         return false;
     }
 
@@ -261,11 +218,6 @@ bool KoboFbScreen::setScreenRotation(ScreenRotation r)
 ScreenRotation KoboFbScreen::getScreenRotation()
 {
     return (ScreenRotation)fbink_rota_native_to_canonical(fbink_state.current_rota);
-}
-
-void KoboFbScreen::setPartialRefreshMode(PartialRefreshMode partialRefreshMode)
-{
-    //    this->refreshThread.setPartialRefreshMode(partialRefreshMode);
 }
 
 void KoboFbScreen::setFullScreenRefreshMode(WaveForm waveform)
@@ -283,9 +235,23 @@ void KoboFbScreen::clearScreen(bool waitForCompleted)
         fbink_wait_for_complete(mFbFd, LAST_MARKER);
 }
 
-void KoboFbScreen::enableDithering(bool dithering)
+void KoboFbScreen::enableDithering(bool softwareDithering, bool hardwareDithering)
 {
-    useHardwareDithering = dithering;
+    useHardwareDithering = hardwareDithering;
+    useSoftwareDithering = softwareDithering;
+}
+
+void KoboFbScreen::ditherRegion(const QRect &region)
+{
+    if (mScreenImageDither.size() != mScreenImage.size())
+        mScreenImageDither = mScreenImage;
+
+    // only dither the lines that were updated
+    int updateHeight = region.height();
+    int offset = region.top() * mScreenImage.width();
+
+    ditherBuffer(mScreenImageDither.bits() + offset, mScreenImage.bits() + offset, mScreenImage.width(),
+                 updateHeight);
 }
 
 void KoboFbScreen::doManualRefresh(const QRect &region)
@@ -313,27 +279,31 @@ void KoboFbScreen::doManualRefresh(const QRect &region)
 
 QRegion KoboFbScreen::doRedraw()
 {
-    //    QElapsedTimer t;
-    //    t.start();
+    QElapsedTimer t;
+    t.start();
     QRegion touched = QFbScreen::doRedraw();
 
     if (touched.isEmpty())
         return touched;
 
-    if (!mBlitter)
-        mBlitter = new QPainter(&mFbScreenImage);
-
-    mBlitter->setCompositionMode(QPainter::CompositionMode_Source);
-    for (const QRect &rect : touched)
-        mBlitter->drawImage(rect, mScreenImage, rect);
-
     QRect r(*touched.begin());
     for (const QRect &rect : touched)
         r = r.united(rect);
 
+    if (!mBlitter)
+        mBlitter = new QPainter(&mFbScreenImage);
+
+    if (useSoftwareDithering)
+        ditherRegion(r);
+
+    mBlitter->setCompositionMode(QPainter::CompositionMode_Source);
+    for (const QRect &rect : touched)
+        mBlitter->drawImage(rect, useSoftwareDithering ? mScreenImageDither : mScreenImage, rect);
+
     doManualRefresh(r);
 
-    //    qDebug() << "redrawing region" << r << touched << "in" << t.elapsed();
+    if (debug)
+        qDebug() << "Painted region" << touched << "in" << t.elapsed() << "ms";
 
     return touched;
 }
