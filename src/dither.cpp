@@ -53,7 +53,7 @@ static inline uint16x4_t vdiv255(uint32x4_t vec)
     return res_downcast;
 }
 
-void dither_NEON(uint8_t* bufferDst, uint8_t* bufferSrc, int width, int height)
+void dither_NEON(uint8_t* bufferDest, uint8_t* bufferSrc, int width, int height)
 {
     static const uint8_t threshold_map_o8x8[] = {
         1,  49, 13, 61, 4,  52, 16, 64, 33, 17, 45, 29, 36, 20, 48, 32, 9,  57, 5,  53, 12, 60,
@@ -121,7 +121,7 @@ void dither_NEON(uint8_t* bufferDst, uint8_t* bufferSrc, int width, int height)
                     vecn = vld1_u8(bufferSrc + offset);
                 }
 
-                vst1_u8(bufferDst + cp, vecqb);
+                vst1_u8(bufferDest + cp, vecqb);
             }
         }
 
@@ -134,7 +134,7 @@ void dither_NEON(uint8_t* bufferDst, uint8_t* bufferSrc, int width, int height)
     // take care of leftovers
     for (; y < height; y++)
         for (; x < width; x++, cp++)
-            bufferDst[cp] = dither_o8x8(x, y, bufferSrc[cp]);
+            bufferDest[cp] = dither_o8x8(x, y, bufferSrc[cp]);
 }
 
 #endif
@@ -146,10 +146,10 @@ void dither_fallback(uint8_t* bufferDst, uint8_t* bufferSrc, int width, int heig
             bufferDst[p] = dither_o8x8(x, y, bufferSrc[p]);
 }
 
-void ditherBuffer(uint8_t* bufferDst, uint8_t* bufferSrc, int width, int height)
+void ditherBuffer(uint8_t* bufferDest, uint8_t* bufferSrc, int width, int height)
 {
 #ifdef __ARM_NEON__
-    dither_NEON(bufferDst, bufferSrc, width, height);
+    dither_NEON(bufferDest, bufferSrc, width, height);
 #else
     dither_fallback(bufferDst, bufferSrc, width, height);
 #endif
@@ -168,9 +168,6 @@ const uint8_t VALUES_12BPP[] = {0, 17, 34, 51, 68, 85, 102, 119, 136, 153, 170, 
 
 #define MIN(a, b) (((a) < (b)) ? (a) : (b))
 #define MAX(a, b) (((a) > (b)) ? (a) : (b))
-#define CLAMP(x, xmin, xmax) \
-    (x) = MAX((xmin), (x));  \
-    (x) = MIN((xmax), (x))
 #define CLAMPED(x, xmin, xmax) MAX((xmin), MIN((xmax), (x)))
 
 //	Floyd-Steinberg dither uses constants 7/16 5/16 3/16 and 1/16
@@ -182,78 +179,158 @@ const uint8_t VALUES_12BPP[] = {0, 17, 34, 51, 68, 85, 102, 119, 136, 153, 170, 
 #define f3_16 48   // const int	f3	= (3 << 8) / 16;
 #define f1_16 16   // const int	f1	= (1 << 8) / 16;
 
-/////////////////////////////////////////////////////////////////////////////
-
-//#define	FS_COEF( v, err )	(( ((err) * ((v) * 100)) / 16) / 100)
-//#define	FS_COEF( v, err )	(( ((err) * ((v) << 8)) >> 4) >> 8)
-#define FS_COEF(v, err) (((err) * ((v) << 8)) >> 12)
-
-#define SIERRA_LITE_COEF(v, err) ((((err) * ((v) << 8)) >> 2) >> 8)
-
-#define SIERRA_COEF(v, err) ((((err) * ((v) << 8)) >> 5) >> 8)
-
-#include <stdlib.h>
-
-#include <cstring>
-
 //	Color Floyd-Steinberg dither using 4 bit per color plane
-void ditherFloydSteinberg(uint8_t* dst, uint8_t* src, int width, int height)
+void ditherFloydSteinberg_(uint8_t* dest, uint8_t* src, int width, int height)
 {
     const int size = width * height;
 
-    int* errorB = (int*)malloc(size * sizeof(int));
+    if (src != dest)
+        std::memcpy(dest, src, size);
 
-    //	Clear the errors buffer.
-    memset(errorB, 0, size * sizeof(int));
-    //~~~~~~~~
-
-    int i = 0;
-
-    for (int y = 0; y < height; y++)
+    for (int y = 0, i = 0; y < height; y++)
     {
-        uint8_t* prow = src + (y * width);
-        uint8_t* prowo = dst + (y * width);
-
         for (int x = 0; x < width; x++, i++)
         {
-            const int inc = prow[x];
+            const uint8_t oldVal = dest[i];
 
-            int newValB = (int)inc + (errorB[i] >> 8);  //	PixelBlue  + error correctionB
+            int newVal = VALUES_12BPP[oldVal >> 4];
+
+            dest[i] = newVal;
+
+            int cerrorB = oldVal - newVal;
+
+            int errorIdx = i + 1;
+            if (x + 1 < width)
+                dest[i + 1] = CLAMPED(dest[errorIdx] + ((cerrorB * f7_16) >> 8), 0, 255);
+
+            errorIdx += width - 2;
+            if (x - 1 > 0 && y + 1 < height)
+                dest[i + width - 1] = CLAMPED(dest[errorIdx] + ((cerrorB * f3_16) >> 8), 0, 255);
+
+            errorIdx++;
+            if (y + 1 < height)
+                dest[i + width + 0] = CLAMPED(dest[errorIdx] + ((cerrorB * f5_16) >> 8), 0, 255);
+
+            errorIdx++;
+            if (x + 1 < width && y + 1 < height)
+                dest[i + width + 1] = CLAMPED(dest[errorIdx] + ((cerrorB * f1_16) >> 8), 0, 255);
+        }
+    }
+}
+
+//	Color Floyd-Steinberg dither using 4 bit per color plane
+void ditherFloydSteinberg(uint8_t* dest, uint8_t* src, int width, int height)
+{
+    const int size = width * height;
+
+    int16_t* errorB = (int16_t*)malloc(size * sizeof(int16_t));
+    memset(errorB, 0, size * sizeof(int16_t));
+
+    for (int y = 0, offset = 0, i = 0; y < height; y++, offset += width)
+    {
+        for (int x = 0; x < width; x++, i++)
+        {
+            const uint8_t oldVal = src[offset + x];
+
+            int oldValErr = oldVal + (errorB[i] >> 8);
 
             //	The error could produce values beyond the borders, so need to keep the color in range
-            int idxB = CLAMPED(newValB, 0, 255);
+            int idxB = CLAMPED(oldVal + (errorB[i] >> 8), 0, 255);
 
-            int newcB = VALUES_12BPP[idxB >> 4];  //	x >> 4 is the same as x / 16
+            int newVal = VALUES_12BPP[idxB >> 4];  //	x >> 4 is the same as x / 16
 
-            prowo[x] = newcB;
+            dest[offset + x] = newVal;
 
-            int cerrorB = newValB - newcB;
+            int quantError = oldValErr - newVal;
 
-            int idx = i + 1;
             if (x + 1 < width)
-            {
-                errorB[idx] += (cerrorB * f7_16);
-            }
+                errorB[i + 1] += (quantError * f7_16);
 
-            idx += width - 2;
             if (x - 1 > 0 && y + 1 < height)
-            {
-                errorB[idx] += (cerrorB * f3_16);
-            }
+                errorB[i + width - 1] += (quantError * f3_16);
 
-            idx++;
             if (y + 1 < height)
-            {
-                errorB[idx] += (cerrorB * f5_16);
-            }
+                errorB[i + width + 0] += (quantError * f5_16);
 
-            idx++;
             if (x + 1 < width && y + 1 < height)
+                errorB[i + width + 1] += (quantError * f1_16);
+        }
+    }
+
+    free(errorB);
+}
+
+//	Color Floyd-Steinberg dither using 4 bit per color plane
+void ditherFloydSteinbergN(uint8_t* dest, uint8_t* src, int width, int height)
+{
+    const int size = width * height;
+
+    int16_t* errorB = (int16_t*)malloc(size * sizeof(int16_t));
+    memset(errorB, 0, size * sizeof(int16_t));
+
+    int16_t* errorLine = (int16_t*)malloc(width * sizeof(int16_t));
+
+    for (int y = 0, offset = 0, i = 0; y < height; y++, offset += width)
+    {
+        for (int x = 0; x < width; x++, i++)
+        {
+            const uint8_t oldVal = src[offset + x];
+
+            int oldValErr = oldVal + (errorB[i] >> 8);
+
+            //	The error could produce values beyond the borders, so need to keep the color in range
+            int idxB = CLAMPED(oldVal + (errorB[i] >> 8), 0, 255);
+
+            int newVal = VALUES_12BPP[idxB >> 4];  //	x >> 4 is the same as x / 16
+
+            dest[offset + x] = newVal;
+
+            int quantError = oldValErr - newVal;
+            errorLine[x] = quantError;
+
+            int errorIdx = i + 1;
+            if (x + 1 < width)
+                errorB[errorIdx] += (quantError * f7_16);
+        }
+        if (y + 1 < height)
+        {
+            int x = 0;
             {
-                errorB[idx] += (cerrorB * f1_16);
+                int16_t quantError = errorLine[x];
+                // errorB[i + x - 1] += (quantError * f3_16);
+                errorB[i + x + 0] += (quantError * f5_16);
+                errorB[i + x + 1] += (quantError * f1_16);
+            }
+            for (x = 1; x + 7 < width - 1; x += 8)
+            {
+                int16x8_t quantErrorv = vld1q_s16(&errorLine[x]);
+
+                int16x8_t multv1 = vmulq_n_s16(quantErrorv, f3_16);
+                int16x8_t resErrorv1 = vld1q_s16(&errorB[i + x - 1]);
+                int16x8_t resAddv1 = vaddq_s16(resErrorv1, multv1);
+                vst1q_s16(&errorB[i + x - 1], resAddv1);
+
+                int16x8_t multv2 = vmulq_n_s16(quantErrorv, f5_16);
+                int16x8_t resErrorv2 = vld1q_s16(&errorB[i + x]);
+                int16x8_t resAddv2 = vaddq_s16(resErrorv2, multv2);
+                vst1q_s16(&errorB[i + x], resAddv2);
+
+                int16x8_t multv3 = vmulq_n_s16(quantErrorv, f1_16);
+                int16x8_t resErrorv3 = vld1q_s16(&errorB[i + x + 1]);
+                int16x8_t resAddv3 = vaddq_s16(resErrorv3, multv3);
+                vst1q_s16(&errorB[i + x + 1], resAddv3);
+            }
+            for (; x < width; x++)
+            {
+                int16_t quantError = errorLine[x];
+                errorB[i + x - 1] += (quantError * f3_16);
+                errorB[i + x + 0] += (quantError * f5_16);
+                if (x + 1 < width)
+                    errorB[i + x + 1] += (quantError * f1_16);
             }
         }
     }
 
     free(errorB);
+    free(errorLine);
 }
