@@ -78,13 +78,13 @@ KoboFbScreen::KoboFbScreen(const QStringList &args, KoboDeviceDescriptor *koboDe
       debug(false),
       mFbScreenImage(),
       mBytesPerLine(0),
+      mBlitter(0),
       fbink_state({0}),
-      fbinkFbInfo({0}),
+      memmapInfo({0}),
       fbink_cfg({0}),
       waitForRefresh(false),
       useHardwareDithering(false),
-      useSoftwareDithering(true),
-      mBlitter(0)
+      useSoftwareDithering(true)
 {
     waitForRefresh = false;
     useHardwareDithering = false;
@@ -111,6 +111,13 @@ KoboFbScreen::KoboFbScreen(const QStringList &args, KoboDeviceDescriptor *koboDe
 
 KoboFbScreen::~KoboFbScreen()
 {
+    uint8_t grayscale = originalBpp == 8 ? GRAYSCALE_8BIT : 0;
+
+    if (fbink_set_fb_info(mFbFd, originalRotation, originalBpp, grayscale, &fbink_cfg) != EXIT_SUCCESS)
+    {
+        qDebug() << "Failed to set original rotation and bpp.";
+    }
+
     if (mFbFd != -1)
     {
         fbink_close(mFbFd);
@@ -143,7 +150,8 @@ bool KoboFbScreen::initialize()
             debug = true;
     }
 
-    fbink_cfg.is_verbose = true;
+    fbink_cfg.is_verbose = debug;
+    fbink_cfg.is_quiet = !debug;
 
     // Open framebuffer and keep it around, then setup globals.
     if ((mFbFd = fbink_open()) == EXIT_FAILURE)
@@ -157,6 +165,10 @@ bool KoboFbScreen::initialize()
         qDebug() << "Failed to initialize FBInk.";
         return false;
     }
+
+    fbink_get_state(&fbink_cfg, &fbink_state);
+    originalBpp = fbink_state.bpp;
+    originalRotation = fbink_state.current_rota;
 
     setScreenRotation(RotationUR);
 
@@ -175,12 +187,12 @@ bool KoboFbScreen::initialize()
     return true;
 }
 
-bool KoboFbScreen::setScreenRotation(ScreenRotation r)
+bool KoboFbScreen::setScreenRotation(ScreenRotation r, int bpp)
 {
     int8_t rota_native = fbink_rota_canonical_to_native(r);
-    int bpp = 8;
+    uint8_t grayscale = bpp == 8 ? GRAYSCALE_8BIT : 0;
 
-    if (fbink_set_fb_info(mFbFd, bpp, rota_native, -1, &fbink_cfg) != EXIT_SUCCESS)
+    if (fbink_set_fb_info(mFbFd, rota_native, bpp, grayscale, &fbink_cfg) != EXIT_SUCCESS)
     {
         qDebug() << "Failed to set rotation and bpp.";
         return false;
@@ -188,29 +200,35 @@ bool KoboFbScreen::setScreenRotation(ScreenRotation r)
 
     fbink_get_state(&fbink_cfg, &fbink_state);
 
-    mBytesPerLine = fbink_state.screen_stride;
+    mBytesPerLine = fbink_state.scanline_stride;
     koboDevice->width = fbink_state.screen_width;
     koboDevice->height = fbink_state.screen_height;
 
     if (debug)
-        qDebug() << "screen info:" << fbink_state.screen_width << fbink_state.screen_height
-                 << fbink_state.screen_stride << fbink_state.current_rota
-                 << fbink_rota_native_to_canonical(fbink_state.current_rota) << fbink_state.bpp;
+        qDebug() << "Screen info:" << fbink_state.screen_width << fbink_state.screen_height
+                 << "rotation:" << fbink_state.current_rota
+                 << "rotation canonical:" << fbink_rota_native_to_canonical(fbink_state.current_rota)
+                 << "bpp:" << fbink_state.bpp;
 
     mGeometry = {0, 0, koboDevice->width, koboDevice->height};
 
     mPhysicalSize = QSizeF(koboDevice->physicalWidth, koboDevice->physicalHeight);
 
-    if (fbink_get_fb_pointer(mFbFd, &fbinkFbInfo) != EXIT_SUCCESS)
+    if ((memmapInfo.bufferPtr = fbink_get_fb_pointer(mFbFd, &memmapInfo.bufferSize)) == NULL)
     {
         qDebug() << "Failed to get fb data or memmap screen";
         return false;
     }
 
+    if (debug)
+        qDebug() << "Allocated screen buffer. Stride:" << fbink_state.scanline_stride
+                 << "buffer size:" << memmapInfo.bufferSize;
+
     mDepth = fbink_state.bpp;
     mFormat = determineFormat(mFbFd, mDepth);
 
-    mFbScreenImage = QImage(fbinkFbInfo.fbPtr, mGeometry.width(), mGeometry.height(), mBytesPerLine, mFormat);
+    mFbScreenImage =
+        QImage(memmapInfo.bufferPtr, mGeometry.width(), mGeometry.height(), mBytesPerLine, mFormat);
 
     return true;
 }
@@ -239,6 +257,9 @@ void KoboFbScreen::enableDithering(bool softwareDithering, bool hardwareDitherin
 {
     useHardwareDithering = hardwareDithering;
     useSoftwareDithering = softwareDithering;
+
+    if (useSoftwareDithering)
+        mScreenImageDither = mScreenImage;
 }
 
 void KoboFbScreen::ditherRegion(const QRect &region)

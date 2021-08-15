@@ -32,7 +32,7 @@ public:
 
     void doManualRefresh(const QRect &region);
 
-    bool setScreenRotation(ScreenRotation r);
+    bool setScreenRotation(ScreenRotation r, int bpp = 8);
 
     ScreenRotation getScreenRotation();
 
@@ -49,9 +49,17 @@ private:
 
     QImage mFbScreenImage;
     int mBytesPerLine;
+    QImage mScreenImageDither;
+
+    QPainter *mBlitter;
 
     FBInkState fbink_state;
-    FBPtrInfo fbinkFbInfo;
+
+    struct
+    {
+        unsigned char *bufferPtr;
+        size_t bufferSize;
+    } memmapInfo;
 
     FBInkConfig fbink_cfg;
 
@@ -63,9 +71,8 @@ private:
     WFM_MODE_INDEX_T waveFormPartial;
     WFM_MODE_INDEX_T waveFormFast;
 
-    QImage mScreenImageDither;
-
-    QPainter *mBlitter;
+    int originalRotation;
+    int originalBpp;
 };
 
 #endif  // QKOBOFBSCREEN_H

@@ -33,12 +33,12 @@ INCLUDEPATH += $$PWD/FBInk $$PWD/FBInk/libi2c-staged/include
 LIBS += -L$$PWD/FBInk/libi2c-staged/lib/ -l:libi2c.a
 
 CONFIG(debug, debug|release) {
-    FBInkBuildEvent.commands = CROSS_TC=$$CROSS_TC MINIMAL=1 DEBUG=1 KOBO=true make -C $$PWD/FBInk libi2c.built pic
+    FBInkBuildEvent.commands = CROSS_TC=$$CROSS_TC MINIMAL=1 DEBUG=1 KOBO=true make -C $$PWD/FBInk pic
     LIBS += -L$$PWD/FBInk/Debug -l:libfbink.a
 }
 
 CONFIG(release, debug|release) {
-FBInkBuildEvent.commands = CROSS_TC=$$CROSS_TC MINIMAL=1 KOBO=true make -C $$PWD/FBInk libi2c.built pic
+FBInkBuildEvent.commands = CROSS_TC=$$CROSS_TC MINIMAL=1 KOBO=true make -C $$PWD/FBInk pic
     LIBS += -L$$PWD/FBInk/Release -l:libfbink.a
 }
 
