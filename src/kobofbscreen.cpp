@@ -154,13 +154,13 @@ bool KoboFbScreen::initialize()
     fbink_cfg.is_quiet = !debug;
 
     // Open framebuffer and keep it around, then setup globals.
-    if ((mFbFd = fbink_open()) == EXIT_FAILURE)
+    if ((mFbFd = fbink_open()) < EXIT_SUCCESS)
     {
         qDebug() << "Failed to open the framebuffer";
         return false;
     }
 
-    if (fbink_init(mFbFd, &fbink_cfg) != EXIT_SUCCESS)
+    if (fbink_init(mFbFd, &fbink_cfg) < EXIT_SUCCESS)
     {
         qDebug() << "Failed to initialize FBInk.";
         return false;
@@ -192,10 +192,10 @@ bool KoboFbScreen::setScreenRotation(ScreenRotation r, int bpp)
     int8_t rota_native = fbink_rota_canonical_to_native(r);
     uint8_t grayscale = bpp == 8 ? GRAYSCALE_8BIT : 0;
 
-    if (fbink_set_fb_info(mFbFd, rota_native, bpp, grayscale, &fbink_cfg) != EXIT_SUCCESS)
+    int rv = 0;
+    if ((rv = fbink_set_fb_info(mFbFd, rota_native, bpp, grayscale, &fbink_cfg)) < EXIT_SUCCESS)
     {
-        qDebug() << "Failed to set rotation and bpp.";
-        return false;
+        qDebug() << "Failed to set rotation and bpp:" << rv;
     }
 
     fbink_get_state(&fbink_cfg, &fbink_state);
