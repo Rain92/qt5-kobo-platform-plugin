@@ -136,7 +136,10 @@ public:
     QString deviceNode;
     bool m_forceToActiveWindow;
     bool m_typeB;
-    QTransform m_rotate;
+    int m_swapXY;
+    bool m_invertX;
+    bool m_invertY;
+    int m_rotate;
     bool m_singleTouch;
     QString m_screenName;
     mutable QPointer<QScreen> m_screen;
@@ -154,6 +157,25 @@ public:
     // timeStamp and touchPoints, as these are being read on the gui thread.
     QMutex m_mutex;
 };
+
+static QPointF transformTouchPoint(const QPointF &p, QEvdevTouchScreenData *d)
+{
+    QPointF tp = p;
+
+    if (d->m_swapXY)
+        tp = tp.transposed();
+
+    tp = {d->m_invertX ? 1 - tp.x() : tp.x(), d->m_invertY ? 1 - tp.y() : tp.y()};
+
+    if (d->m_rotate == 90)
+        tp = {tp.y(), 1 - tp.x()};
+    if (d->m_rotate == 180)
+        tp = {1 - tp.x(), 1 - tp.y()};
+    if (d->m_rotate == 270)
+        tp = {1 - tp.y(), tp.x()};
+
+    return tp;
+}
 
 QEvdevTouchScreenData::QEvdevTouchScreenData(QEvdevTouchScreenHandler *q_ptr, const QStringList &args)
     : q(q_ptr),
@@ -344,6 +366,14 @@ QEvdevTouchScreenHandler::QEvdevTouchScreenHandler(const QString &device, const 
         }
     }
 
+    d->m_swapXY = swapxy;
+    d->m_invertX = invertx;
+    d->m_invertY = inverty;
+    if (screenrotation % 90 == 0)
+        d->m_rotate = (screenrotation + 3600) % 360;
+    else
+        d->m_rotate = 0;
+
     char name[1024];
     if (ioctl(m_fd, EVIOCGNAME(sizeof(name) - 1), name) >= 0)
     {
@@ -356,18 +386,6 @@ QEvdevTouchScreenHandler::QEvdevTouchScreenHandler(const QString &device, const 
         ioctl(m_fd, EVIOCGRAB, (void *)0);
     else
         qWarning("evdevtouch: The device is grabbed by another process. No events will be read.");
-
-    if (swapxy)
-        d->m_rotate *= QTransform::fromTranslate(0.5, 0.5).rotate(90).scale(1.0, -1.0).translate(-0.5, -0.5);
-
-    if (invertx)
-        d->m_rotate *= QTransform::fromTranslate(0.5, 0.5).scale(-1.0, 1.0).translate(-0.5, -0.5);
-
-    if (inverty)
-        d->m_rotate *= QTransform::fromTranslate(0.5, 0.5).scale(1.0, -1.0).translate(-0.5, -0.5);
-
-    if (screenrotation > 0)
-        d->m_rotate *= QTransform::fromTranslate(0.5, 0.5).rotate(-screenrotation).translate(-0.5, -0.5);
 
     registerTouchDevice();
 }
@@ -489,13 +507,12 @@ void QEvdevTouchScreenData::addTouchPoint(const Contact &contact, Qt::TouchPoint
     tp.normalPosition = QPointF((contact.x - hw_range_x_min) / qreal(hw_range_x_max - hw_range_x_min),
                                 (contact.y - hw_range_y_min) / qreal(hw_range_y_max - hw_range_y_min));
 
+    tp.rawPositions.append(QPointF(contact.x, contact.y));
+
     qCDebug(qLcEvdevTouch) << "Touchpoint raw position:" << tp.rawPositions.last();
     qCDebug(qLcEvdevTouch) << "Touchpoint normal position:" << tp.normalPosition;
 
-    if (!m_rotate.isIdentity())
-        tp.normalPosition = m_rotate.map(tp.normalPosition);
-
-    tp.rawPositions.append(QPointF(contact.x, contact.y));
+    tp.normalPosition = transformTouchPoint(tp.normalPosition, this);
 
     qCDebug(qLcEvdevTouch) << "Touchpoint transformed normal position:" << tp.normalPosition;
 
@@ -847,8 +864,8 @@ void QEvdevTouchScreenData::reportPoints()
     if (winRect.isNull())
         return;
 
-    const int hw_w = hw_range_x_max - hw_range_x_min;
-    const int hw_h = hw_range_y_max - hw_range_y_min;
+    //    const int hw_w = hw_range_x_max - hw_range_x_min;
+    //    const int hw_h = hw_range_y_max - hw_range_y_min;
 
     // Map the coordinates based on the normalized position. QPA expects 'area'
     // to be in screen coordinates.
@@ -862,11 +879,11 @@ void QEvdevTouchScreenData::reportPoints()
         // Qt uses QRect/QPoint so we need to bound the size to winRect.size() - QSize(1, 1)
         const qreal wx = winRect.left() + tp.normalPosition.x() * (winRect.width() - 1);
         const qreal wy = winRect.top() + tp.normalPosition.y() * (winRect.height() - 1);
-        const qreal sizeRatio = (winRect.width() + winRect.height()) / qreal(hw_w + hw_h);
-        if (tp.area.width() == -1)  // touch major was not provided
-            tp.area = QRectF(0, 0, 8, 8);
-        else
-            tp.area = QRectF(0, 0, tp.area.width() * sizeRatio, tp.area.height() * sizeRatio);
+        //        const qreal sizeRatio = (winRect.width() + winRect.height()) / qreal(hw_w + hw_h);
+        //        if (tp.area.width() == -1)  // touch major was not provided
+        tp.area = QRectF(0, 0, 8, 8);
+        //        else
+        //            tp.area = QRectF(0, 0, tp.area.width() * sizeRatio, tp.area.height() * sizeRatio);
         tp.area.moveCenter(QPointF(wx, wy));
 
         // Calculate normalized pressure.
