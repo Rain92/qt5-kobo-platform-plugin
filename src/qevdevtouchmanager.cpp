@@ -41,7 +41,6 @@
 #include <private/qguiapplication_p.h>
 #include <private/qinputdevicemanager_p_p.h>
 #include <private/qmemory_p.h>
-#include <qevdevutil_p.h>
 
 #include <QGuiApplication>
 #include <QLoggingCategory>
@@ -66,14 +65,14 @@ QEvdevTouchManager::QEvdevTouchManager(const QString &key, const QString &specif
     if (spec.isEmpty())
         spec = specification;
 
-    auto parsed = QEvdevUtil::parseSpecification(spec);
-    m_spec = std::move(parsed.spec);
+    m_spec = spec;
 
-    for (const QString &device : qAsConst(parsed.devices))
-        addDevice(device);
+    for (const QString &device : spec.split(":"))
+        if (device.startsWith("/dev/"))
+            addDevice(device);
 
     // when no devices specified, use device discovery to scan and monitor
-    if (parsed.devices.isEmpty())
+    if (m_activeDevices.count() == 0)
     {
         qCDebug(qLcEvdevTouch, "evdevtouch: Using device discovery");
         if (auto deviceDiscovery = QDeviceDiscovery::create(
@@ -95,12 +94,13 @@ QEvdevTouchManager::~QEvdevTouchManager() {}
 void QEvdevTouchManager::addDevice(const QString &deviceNode)
 {
     qCDebug(qLcEvdevTouch, "evdevtouch: Adding device at %ls", qUtf16Printable(deviceNode));
-    auto handler = qt_make_unique<QEvdevTouchScreenHandlerThread>(deviceNode, m_spec);
+    auto handler = QSharedPointer<QEvdevTouchScreenHandlerThread>(
+        new QEvdevTouchScreenHandlerThread(deviceNode, m_spec));
     if (handler)
     {
         connect(handler.get(), &QEvdevTouchScreenHandlerThread::touchDeviceRegistered, this,
                 &QEvdevTouchManager::updateInputDeviceCount);
-        m_activeDevices.add(deviceNode, std::move(handler));
+        m_activeDevices.insert(deviceNode, handler);
     }
     else
     {
@@ -120,9 +120,9 @@ void QEvdevTouchManager::removeDevice(const QString &deviceNode)
 void QEvdevTouchManager::updateInputDeviceCount()
 {
     int registeredTouchDevices = 0;
-    for (const auto &device : m_activeDevices)
+    for (const auto &device : qAsConst(m_activeDevices))
     {
-        if (device.handler->isTouchDeviceRegistered())
+        if (device->isTouchDeviceRegistered())
             ++registeredTouchDevices;
     }
 

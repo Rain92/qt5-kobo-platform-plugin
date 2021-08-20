@@ -51,7 +51,6 @@
 #include <mutex>
 
 #include "qevdevtouchhandler_p.h"
-#include "qtouchoutputmapping_p.h"
 
 #ifdef Q_OS_FREEBSD
 #include <dev/evdev/input.h>
@@ -409,15 +408,6 @@ QEvdevTouchScreenHandler::QEvdevTouchScreenHandler(const QString &device, const 
 
     if (screenrotation > 0)
         d->m_rotate *= QTransform::fromTranslate(0.5, 0.5).rotate(-screenrotation).translate(-0.5, -0.5);
-
-    QTouchOutputMapping mapping;
-    if (mapping.load())
-    {
-        d->m_screenName = mapping.screenNameForDeviceNode(d->deviceNode);
-        if (!d->m_screenName.isEmpty())
-            qCDebug(qLcEvdevTouch, "evdevtouch: Mapping device %ls to screen %ls",
-                    qUtf16Printable(d->deviceNode), qUtf16Printable(d->m_screenName));
-    }
 
     registerTouchDevice();
 }

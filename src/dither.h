@@ -1,8 +1,6 @@
 #ifndef DITHER_H
 #define DITHER_H
 
-#define __ARM_NEON__
-
 #include <stdint.h>
 #include <stdlib.h>
 
