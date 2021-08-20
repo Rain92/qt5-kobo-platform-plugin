@@ -63,10 +63,6 @@
 
 #include "qevdevtouchfilter_p.h"
 
-#if QT_CONFIG(mtdev)
-struct mtdev;
-#endif
-
 QT_BEGIN_NAMESPACE
 
 class QSocketNotifier;
@@ -101,9 +97,6 @@ private:
     int m_fd;
     QEvdevTouchScreenData *d;
     QTouchDevice *m_device;
-#if QT_CONFIG(mtdev)
-    mtdev *m_mtdev;
-#endif
 };
 
 class QEvdevTouchScreenHandlerThread : public QDaemonThread

@@ -41,6 +41,8 @@
 #include <QtCore/private/qcore_unix_p.h>
 #include <QtGui/private/qguiapplication_p.h>
 #include <QtGui/private/qhighdpiscaling_p.h>
+#include <linux/input.h>
+#include <math.h>
 
 #include <QGuiApplication>
 #include <QHash>
@@ -51,21 +53,6 @@
 #include <mutex>
 
 #include "qevdevtouchhandler_p.h"
-
-#ifdef Q_OS_FREEBSD
-#include <dev/evdev/input.h>
-#else
-#include <linux/input.h>
-#endif
-
-#include <math.h>
-
-#if QT_CONFIG(mtdev)
-extern "C"
-{
-#include <mtdev.h>
-}
-#endif
 
 QT_BEGIN_NAMESPACE
 
@@ -193,7 +180,7 @@ QEvdevTouchScreenData::QEvdevTouchScreenData(QEvdevTouchScreenHandler *q_ptr, co
         else if (arg == QStringLiteral("filtered"))
             m_filtered = true;
         else if (arg.startsWith(QStringLiteral("prediction=")))
-            m_prediction = arg.mid(11).toInt();
+            m_prediction = arg.midRef(11).toInt();
     }
 }
 
@@ -209,15 +196,7 @@ static inline bool testBit(long bit, const long *array)
 
 QEvdevTouchScreenHandler::QEvdevTouchScreenHandler(const QString &device, const QString &spec,
                                                    QObject *parent)
-    : QObject(parent),
-      m_notify(nullptr),
-      m_fd(-1),
-      d(nullptr),
-      m_device(nullptr)
-#if QT_CONFIG(mtdev)
-      ,
-      m_mtdev(nullptr)
-#endif
+    : QObject(parent), m_notify(nullptr), m_fd(-1), d(nullptr), m_device(nullptr)
 {
     setObjectName(QLatin1String("Evdev Touch Handler"));
 
@@ -312,24 +291,9 @@ QEvdevTouchScreenHandler::QEvdevTouchScreenHandler(const QString &device, const 
         return;
     }
 
-#if QT_CONFIG(mtdev)
-    m_mtdev = static_cast<mtdev *>(calloc(1, sizeof(mtdev)));
-    int mtdeverr = mtdev_open(m_mtdev, m_fd);
-    if (mtdeverr)
-    {
-        qWarning("evdevtouch: mtdev_open failed: %d", mtdeverr);
-        QT_CLOSE(m_fd);
-        return;
-    }
-#endif
-
     d = new QEvdevTouchScreenData(this, args);
     d->setScreenGeometry(screenRect);
 
-#if QT_CONFIG(mtdev)
-    const char *mtdevStr = "(mtdev)";
-    d->m_typeB = true;
-#else
     const char *mtdevStr = "";
     long absbits[NUM_LONGS(ABS_CNT)];
     if (ioctl(m_fd, EVIOCGBIT(EV_ABS, sizeof(absbits)), absbits) >= 0)
@@ -337,7 +301,6 @@ QEvdevTouchScreenHandler::QEvdevTouchScreenHandler(const QString &device, const 
         d->m_typeB = testBit(ABS_MT_SLOT, absbits);
         d->m_singleTouch = !testBit(ABS_MT_POSITION_X, absbits);
     }
-#endif
 
     d->deviceNode = device;
     qCDebug(qLcEvdevTouch, "evdevtouch: %ls: Protocol type %c %s (%s), filtered=%s",
@@ -414,14 +377,6 @@ QEvdevTouchScreenHandler::QEvdevTouchScreenHandler(const QString &device, const 
 
 QEvdevTouchScreenHandler::~QEvdevTouchScreenHandler()
 {
-#if QT_CONFIG(mtdev)
-    if (m_mtdev)
-    {
-        mtdev_close(m_mtdev);
-        free(m_mtdev);
-    }
-#endif
-
     if (m_fd >= 0)
         QT_CLOSE(m_fd);
 
@@ -445,28 +400,6 @@ void QEvdevTouchScreenHandler::readData()
     ::input_event buffer[32];
     int events = 0;
 
-#if QT_CONFIG(mtdev)
-    forever
-    {
-        do
-        {
-            events = mtdev_get(m_mtdev, m_fd, buffer, sizeof(buffer) / sizeof(::input_event));
-            // keep trying mtdev_get if we get interrupted. note that we do not
-            // (and should not) handle EAGAIN; EAGAIN means that reading would
-            // block and we'll get back here later to try again anyway.
-        } while (events == -1 && errno == EINTR);
-
-        // 0 events is EOF, -1 means error, handle both in the same place
-        if (events <= 0)
-            goto err;
-
-        // process our shiny new events
-        for (int i = 0; i < events; ++i)
-            d->processInputEvent(&buffer[i]);
-
-        // and try to get more
-    }
-#else
     int n = 0;
     for (;;)
     {
@@ -482,7 +415,7 @@ void QEvdevTouchScreenHandler::readData()
 
     for (int i = 0; i < n; ++i)
         d->processInputEvent(&buffer[i]);
-#endif
+
     return;
 
 err:
