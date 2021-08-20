@@ -187,12 +187,10 @@ QEvdevTouchScreenData::QEvdevTouchScreenData(QEvdevTouchScreenHandler *q_ptr, co
 #define LONG_BITS (sizeof(long) << 3)
 #define NUM_LONGS(bits) (((bits) + LONG_BITS - 1) / LONG_BITS)
 
-#if !QT_CONFIG(mtdev)
 static inline bool testBit(long bit, const long *array)
 {
     return (array[bit / LONG_BITS] >> bit % LONG_BITS) & 1;
 }
-#endif
 
 QEvdevTouchScreenHandler::QEvdevTouchScreenHandler(const QString &device, const QString &spec,
                                                    QObject *parent)
@@ -294,7 +292,6 @@ QEvdevTouchScreenHandler::QEvdevTouchScreenHandler(const QString &device, const 
     d = new QEvdevTouchScreenData(this, args);
     d->setScreenGeometry(screenRect);
 
-    const char *mtdevStr = "";
     long absbits[NUM_LONGS(ABS_CNT)];
     if (ioctl(m_fd, EVIOCGBIT(EV_ABS, sizeof(absbits)), absbits) >= 0)
     {
@@ -303,9 +300,9 @@ QEvdevTouchScreenHandler::QEvdevTouchScreenHandler(const QString &device, const 
     }
 
     d->deviceNode = device;
-    qCDebug(qLcEvdevTouch, "evdevtouch: %ls: Protocol type %c %s (%s), filtered=%s",
-            qUtf16Printable(d->deviceNode), d->m_typeB ? 'B' : 'A', mtdevStr,
-            d->m_singleTouch ? "single" : "multi", d->m_filtered ? "yes" : "no");
+    qCDebug(qLcEvdevTouch, "evdevtouch: %ls: Protocol type %c (%s), filtered=%s",
+            qUtf16Printable(d->deviceNode), d->m_typeB ? 'B' : 'A', d->m_singleTouch ? "single" : "multi",
+            d->m_filtered ? "yes" : "no");
     if (d->m_filtered)
         qCDebug(qLcEvdevTouch, " - prediction=%d", d->m_prediction);
 
