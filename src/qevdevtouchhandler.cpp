@@ -492,13 +492,15 @@ void QEvdevTouchScreenData::addTouchPoint(const Contact &contact, Qt::TouchPoint
     tp.normalPosition = QPointF((contact.x - hw_range_x_min) / qreal(hw_range_x_max - hw_range_x_min),
                                 (contact.y - hw_range_y_min) / qreal(hw_range_y_max - hw_range_y_min));
 
+    qCDebug(qLcEvdevTouch) << "Touchpoint raw position:" << tp.rawPositions.last();
+    qCDebug(qLcEvdevTouch) << "Touchpoint normal position:" << tp.normalPosition;
+
     if (!m_rotate.isIdentity())
         tp.normalPosition = m_rotate.map(tp.normalPosition);
 
     tp.rawPositions.append(QPointF(contact.x, contact.y));
 
-    qCDebug(qLcEvdevTouch) << "Touchpoint normal position:" << tp.normalPosition;
-    qCDebug(qLcEvdevTouch) << "Touchpoint raw position:" << tp.rawPositions.last();
+    qCDebug(qLcEvdevTouch) << "Touchpoint transformed normal position:" << tp.normalPosition;
 
     m_touchPoints.append(tp);
 }
