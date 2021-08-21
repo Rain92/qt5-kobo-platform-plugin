@@ -1,5 +1,52 @@
 #!/bin/sh
 
+PLATFORM=freescale
+if [ `dd if=/dev/mmcblk0 bs=512 skip=1024 count=1  2>/dev/null | grep -c "HW CONFIG" ` == 1 ]; then
+        CPU=`ntx_hwconfig -s -p /dev/mmcblk0 CPU 2>/dev/null`
+        PLATFORM=$CPU-ntx
+        WIFI=`ntx_hwconfig -s -p /dev/mmcblk0 Wifi 2>/dev/null`
+fi
+
+INTERFACE=wlan0
+WIFI_MODULE=ar6000
+if [ $PLATFORM != freescale ]; then
+        INTERFACE=eth0
+        WIFI_MODULE=dhd
+        if [ x$WIFI == "xRTL8189" ]; then
+            WIFI_MODULE=8189fs
+        fi
+fi
+
+# check whether PLATFORM & PRODUCT have a value assigned by rcS
+if [ -z "${PRODUCT}" ]; then
+    # shellcheck disable=SC2046
+    export $(grep -s -e '^PRODUCT=' "/proc/$(pidof -s udevd)/environ")
+fi
+
+if [ -z "${PRODUCT}" ]; then
+    PRODUCT="$(/bin/kobo_config.sh 2>/dev/null)"
+    export PRODUCT
+fi
+
+# PLATFORM is used in koreader for the path to the Wi-Fi drivers (as well as when restarting nickel)
+if [ -z "${PLATFORM}" ]; then
+    # shellcheck disable=SC2046
+    export $(grep -s -e '^PLATFORM=' "/proc/$(pidof -s udevd)/environ")
+fi
+
+if [ -z "${PLATFORM}" ]; then
+    PLATFORM="freescale"
+    if dd if="/dev/mmcblk0" bs=512 skip=1024 count=1 | grep -q "HW CONFIG"; then
+        CPU="$(ntx_hwconfig -s -p /dev/mmcblk0 CPU 2>/dev/null)"
+        PLATFORM="${CPU}-ntx"
+    fi
+
+    if [ "${PLATFORM}" != "freescale" ] && [ ! -e "/etc/u-boot/${PLATFORM}/u-boot.mmc" ]; then
+        PLATFORM="ntx508"
+    fi
+    export PLATFORM
+fi
+
 # Disable wifi, and remove all modules.
 # NOTE: Save our resolv.conf to avoid ending up with an empty one, in case the DHCP client wipes it on release (#6424).
 cp -a "/etc/resolv.conf" "/tmp/resolv.ko"

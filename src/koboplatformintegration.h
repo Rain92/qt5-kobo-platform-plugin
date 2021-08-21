@@ -52,8 +52,13 @@ private:
     static void enableDitheringStatic(bool softwareDithering, bool hardwareDithering);
     static void doManualRefreshStatic(QRect region);
     static KoboDeviceDescriptor getKoboDeviceDescriptorStatic();
+    static void enableWiFiConnectionStatic();
+    static void disableWiFiConnectionStatic();
+    static bool testInternetConnectionStatic(int timeout);
 
     KoboDeviceDescriptor koboDevice;
+
+    KoboWifiManager wifiManager;
 
     QStringList m_paramList;
     KoboFbScreen *m_primaryScreen;

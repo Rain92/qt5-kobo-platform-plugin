@@ -1,15 +1,26 @@
 #ifndef WIFIMANAGER_H
 #define WIFIMANAGER_H
 
-#include <QObject>
+#include <QProcess>
+#include <QSharedPointer>
 
 class KoboWifiManager
 {
 public:
-    static bool testInternetConnection(int timeout);
+    KoboWifiManager();
+    ~KoboWifiManager();
 
-    static void enableWiFiConnection();
-    static void disableWiFiConnection();
+    bool testInternetConnection(int timeout);
+
+    void enableWiFiConnection();
+    void disableWiFiConnection();
+
+    void stopProcess();
+
+private:
+    void executeShell(const char* command);
+
+    QSharedPointer<QProcess> process;
 };
 
 #endif  // WIFIMANAGER_H

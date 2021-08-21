@@ -206,13 +206,12 @@ QFunctionPointer KoboPlatformIntegration::platformFunction(const QByteArray &fun
         return QFunctionPointer(doManualRefreshStatic);
     else if (function == KoboPlatformFunctions::getKoboDeviceDescriptorIdentifier())
         return QFunctionPointer(getKoboDeviceDescriptorStatic);
-
     else if (function == KoboPlatformFunctions::testInternetConnectionIdentifier())
-        return QFunctionPointer(KoboWifiManager::testInternetConnection);
+        return QFunctionPointer(testInternetConnectionStatic);
     else if (function == KoboPlatformFunctions::enableWiFiConnectionIdentifier())
-        return QFunctionPointer(KoboWifiManager::enableWiFiConnection);
+        return QFunctionPointer(enableWiFiConnectionStatic);
     else if (function == KoboPlatformFunctions::disableWiFiConnectionIdentifier())
-        return QFunctionPointer(KoboWifiManager::disableWiFiConnection);
+        return QFunctionPointer(disableWiFiConnectionStatic);
 
     return 0;
 }
@@ -279,4 +278,28 @@ KoboDeviceDescriptor KoboPlatformIntegration::getKoboDeviceDescriptorStatic()
         static_cast<KoboPlatformIntegration *>(QGuiApplicationPrivate::platformIntegration());
 
     return *self->deviceDescriptor();
+}
+
+void KoboPlatformIntegration::enableWiFiConnectionStatic()
+{
+    KoboPlatformIntegration *self =
+        static_cast<KoboPlatformIntegration *>(QGuiApplicationPrivate::platformIntegration());
+
+    self->wifiManager.enableWiFiConnection();
+}
+
+void KoboPlatformIntegration::disableWiFiConnectionStatic()
+{
+    KoboPlatformIntegration *self =
+        static_cast<KoboPlatformIntegration *>(QGuiApplicationPrivate::platformIntegration());
+
+    self->wifiManager.disableWiFiConnection();
+}
+
+bool KoboPlatformIntegration::testInternetConnectionStatic(int timeout)
+{
+    KoboPlatformIntegration *self =
+        static_cast<KoboPlatformIntegration *>(QGuiApplicationPrivate::platformIntegration());
+
+    self->wifiManager.testInternetConnection(timeout);
 }

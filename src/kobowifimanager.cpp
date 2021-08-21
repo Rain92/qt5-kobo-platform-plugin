@@ -3,6 +3,43 @@
 #include <QDebug>
 #include <QFile>
 #include <QString>
+#include <QThread>
+
+KoboWifiManager::KoboWifiManager() : process(nullptr) {}
+
+KoboWifiManager::~KoboWifiManager()
+{
+    process->disconnect();
+    stopProcess();
+}
+
+void KoboWifiManager::executeShell(const char* command)
+{
+    if (!process)
+    {
+        qDebug() << "creating process";
+        process.reset(new QProcess());
+        QObject::connect(process.data(), &QProcess::readyReadStandardOutput,
+                         [&]() { qDebug() << process->readAllStandardOutput(); });
+
+        QObject::connect(process.data(), &QProcess::readyReadStandardError,
+                         [&]() { qDebug() << process->readAllStandardError(); });
+    }
+
+    stopProcess();
+    process->start("/bin/sh", {}, QProcess::ReadWrite);
+    process->waitForStarted();
+
+    process->write(command);
+    process->write("\nexit\n");
+    process->waitForFinished();
+}
+
+void KoboWifiManager::stopProcess()
+{
+    if (process->state() != QProcess::NotRunning)
+        process->close();
+}
 
 bool KoboWifiManager::testInternetConnection(int timeout)
 {
@@ -18,7 +55,7 @@ void KoboWifiManager::enableWiFiConnection()
     QByteArray restoreWifiScript = restoreWifiFile.readAll();
     restoreWifiFile.close();
 
-    system(restoreWifiScript);
+    executeShell(restoreWifiScript.data());
 }
 
 void KoboWifiManager::disableWiFiConnection()
@@ -28,5 +65,5 @@ void KoboWifiManager::disableWiFiConnection()
     QByteArray disableWifiScript = disableWifiFile.readAll();
     disableWifiFile.close();
 
-    system(disableWifiScript);
+    executeShell(disableWifiScript.data());
 }
