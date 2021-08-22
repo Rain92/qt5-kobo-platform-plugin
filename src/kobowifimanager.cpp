@@ -9,15 +9,17 @@ KoboWifiManager::KoboWifiManager() : process(nullptr) {}
 
 KoboWifiManager::~KoboWifiManager()
 {
-    process->disconnect();
-    stopProcess();
+    if (process)
+    {
+        process->disconnect();
+        stopProcess();
+    }
 }
 
 void KoboWifiManager::executeShell(const char* command)
 {
     if (!process)
     {
-        qDebug() << "creating process";
         process.reset(new QProcess());
         QObject::connect(process.data(), &QProcess::readyReadStandardOutput,
                          [&]() { qDebug() << process->readAllStandardOutput(); });
@@ -37,8 +39,9 @@ void KoboWifiManager::executeShell(const char* command)
 
 void KoboWifiManager::stopProcess()
 {
-    if (process->state() != QProcess::NotRunning)
-        process->close();
+    if (process)
+        if (process->state() != QProcess::NotRunning)
+            process->close();
 }
 
 bool KoboWifiManager::testInternetConnection(int timeout)
