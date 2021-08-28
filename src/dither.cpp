@@ -151,7 +151,7 @@ void ditherBuffer(uint8_t* bufferDest, uint8_t* bufferSrc, int width, int height
 #ifdef __ARM_NEON__
     dither_NEON(bufferDest, bufferSrc, width, height);
 #else
-    dither_fallback(bufferDst, bufferSrc, width, height);
+    dither_fallback(bufferDest, bufferSrc, width, height);
 #endif
 }
 
