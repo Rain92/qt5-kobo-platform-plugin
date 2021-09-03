@@ -4,8 +4,8 @@ Supports most of the Kobo platform functons including E-Ink screen refresh contr
 input management for buttons and touchscreen, frontlight control, WiFi management and more. \
 At runtime an app using this plugin can be configurend with the environment variable QT_QPA_PLATFORM. \
 The following parameters are supported: \
-debug -> enables additional debug output \ 
-logicaldpitarget= -> enables high dpi scaling \ 
+debug -> enables additional debug output \
+logicaldpitarget= -> enables high dpi scaling \
 
 For example:
 ```
