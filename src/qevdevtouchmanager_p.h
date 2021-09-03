@@ -51,10 +51,10 @@
 // We mean it.
 //
 
+#include <QtInputSupport/private/devicehandlerlist_p.h>
+
 #include <QHash>
-#include <QMap>
 #include <QObject>
-#include <QRect>
 #include <QSocketNotifier>
 
 QT_BEGIN_NAMESPACE
@@ -75,8 +75,7 @@ public:
 
 private:
     QString m_spec;
-    QMap<QString, QSharedPointer<QEvdevTouchScreenHandlerThread>> m_activeDevices;
-    //    QtInputSupport::DeviceHandlerList<QEvdevTouchScreenHandlerThread> m_activeDevices;
+    QtInputSupport::DeviceHandlerList<QEvdevTouchScreenHandlerThread> m_activeDevices;
 };
 
 QT_END_NAMESPACE

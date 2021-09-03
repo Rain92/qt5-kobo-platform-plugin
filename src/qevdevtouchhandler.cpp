@@ -559,8 +559,13 @@ void QEvdevTouchScreenData::processInputEvent(input_event *data)
         }
         else if (data->code == ABS_MT_TRACKING_ID)
         {
-            qCDebug(qLcEvdevTouch) << "EV_ABS TRACKING_ID " << data->value;
             m_currentData.trackingId = data->value;
+
+            // QT can't handle high tracking IDs
+            if (m_currentData.trackingId > 2)
+                m_currentData.trackingId = 0;
+
+            qCDebug(qLcEvdevTouch) << "EV_ABS TRACKING_ID " << m_currentData.trackingId;
             if (m_typeB)
             {
                 if (m_currentData.trackingId == -1)
@@ -581,8 +586,8 @@ void QEvdevTouchScreenData::processInputEvent(input_event *data)
             qCDebug(qLcEvdevTouch) << "EV_ABS TOUCH_MAJOR";
             m_currentData.maj = data->value;
             // MODIFICATION two lines followed are commented
-            // if (data->value == 0)
-            //    m_currentData.state = Qt::TouchPointReleased;
+            if (data->value == 0)
+                m_currentData.state = Qt::TouchPointReleased;
             if (m_typeB)
                 m_contacts[m_currentSlot].maj = m_currentData.maj;
         }
@@ -612,11 +617,11 @@ void QEvdevTouchScreenData::processInputEvent(input_event *data)
         }
 
         // MODIFICATION change state to press
-        if (data->code == BTN_TOUCH && data->value == 1)
-        {
-            m_contacts[m_currentSlot].state = Qt::TouchPointPressed;
-            qCDebug(qLcEvdevTouch) << "EV_KEY BTN_TOUCH 1 touchpoint pressed";
-        }
+        //        if (data->code == BTN_TOUCH && data->value == 1)
+        //        {
+        //            m_contacts[m_currentSlot].state = Qt::TouchPointPressed;
+        //            qCDebug(qLcEvdevTouch) << "EV_KEY BTN_TOUCH 1 touchpoint pressed";
+        //        }
     }
     else if (data->type == EV_SYN && data->code == SYN_MT_REPORT && m_lastEventType != EV_SYN)
     {
