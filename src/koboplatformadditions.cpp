@@ -127,7 +127,7 @@ void KoboPlatformAdditions::setNaturalBrightness(int brig, int temp)
         if (fWhite != "")
             write_light_value(fWhite, brig);
         if (fMixer != "")
-            write_light_value(fMixer, 10 - temp);
+            write_light_value(fMixer, temp);
     }
     else
     {
