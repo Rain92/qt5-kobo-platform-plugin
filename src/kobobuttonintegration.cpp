@@ -7,6 +7,7 @@
 #define KEY_PAGE_UP 193
 #define KEY_PAGE_DOWN 194
 
+#define EVENT_REPEAT 2
 #define EVENT_PRESS 1
 #define EVENT_RELEASE 0
 
@@ -73,7 +74,7 @@ void KoboButtonIntegration::activity(int)
 
     KoboKey code;
 
-    if (KoboPhysicalKeyMap.contains(in.code))
+    if (KoboPhysicalKeyMap.contains(in.code) && !(in.code == KEY_SLEEP_COVER && in.value == EVENT_REPEAT))
     {
         code = KoboPhysicalKeyMap[in.code];
 
