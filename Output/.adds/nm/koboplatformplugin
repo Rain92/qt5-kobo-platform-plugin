@@ -1,0 +1,3 @@
+# Launch directly via NM
+menu_item : main : Obenkyobo ! : cmd_spawn : quiet : exec /mnt/onboard/.adds/koboplatformplugin/koboplatformplugin_launcher.sh
+
