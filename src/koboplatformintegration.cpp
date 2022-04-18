@@ -301,5 +301,5 @@ bool KoboPlatformIntegration::testInternetConnectionStatic(int timeout)
     KoboPlatformIntegration *self =
         static_cast<KoboPlatformIntegration *>(QGuiApplicationPrivate::platformIntegration());
 
-    self->wifiManager.testInternetConnection(timeout);
+    return self->wifiManager.testInternetConnection(timeout);
 }

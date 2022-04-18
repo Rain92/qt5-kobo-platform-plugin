@@ -8,6 +8,8 @@ CONFIG += plugin
 
 DEFINES += QT_NO_FOREACH
 
+QMAKE_CXXFLAGS += -Wno-missing-field-initializers
+
 QMAKE_RPATHDIR += ../../lib
 
 QT +=  widgets \

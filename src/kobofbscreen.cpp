@@ -325,8 +325,8 @@ QRegion KoboFbScreen::doRedraw()
 
     doManualRefresh(r);
 
-    if (debug)
-        qDebug() << "Painted region" << touched << "in" << t.elapsed() << "ms";
+    //    if (debug)
+    //        qDebug() << "Painted region" << touched << "in" << t.elapsed() << "ms";
 
     return touched;
 }
