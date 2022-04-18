@@ -8,12 +8,15 @@ CONFIG += plugin
 
 DEFINES += QT_NO_FOREACH
 
+QMAKE_CXXFLAGS += -Wno-missing-field-initializers
+
 QMAKE_RPATHDIR += ../../lib
 
 QT +=  widgets \
     core-private gui-private \
-    service_support-private eventdispatcher_support-private \
-    fontdatabase_support-private fb_support-private devicediscovery_support-private testlib
+    service_support-private eventdispatcher_support-private input_support-private \
+    fb_support-private fontdatabase_support-private
+
 
 INCLUDEPATH += $$PWD/src
 

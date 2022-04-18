@@ -509,6 +509,7 @@ void QEvdevTouchScreenData::addTouchPoint(const Contact &contact, Qt::TouchPoint
 
     tp.rawPositions.append(QPointF(contact.x, contact.y));
 
+    qCDebug(qLcEvdevTouch) << "Adding touch point:" << tp.id << tp.uniqueId;
     qCDebug(qLcEvdevTouch) << "Touchpoint raw position:" << tp.rawPositions.last();
     qCDebug(qLcEvdevTouch) << "Touchpoint normal position:" << tp.normalPosition;
 
@@ -559,20 +560,25 @@ void QEvdevTouchScreenData::processInputEvent(input_event *data)
         }
         else if (data->code == ABS_MT_TRACKING_ID)
         {
-            qCDebug(qLcEvdevTouch) << "EV_ABS TRACKING_ID " << data->value;
             m_currentData.trackingId = data->value;
+
+            // QT apparently can't handle high tracking IDs well?
+            if (m_currentData.trackingId > 2)
+                m_currentData.trackingId = 1;
+
+            qCDebug(qLcEvdevTouch) << "EV_ABS TRACKING_ID " << m_currentData.trackingId;
             if (m_typeB)
             {
                 if (m_currentData.trackingId == -1)
                 {
                     m_contacts[m_currentSlot].state = Qt::TouchPointReleased;
-                    qCDebug(qLcEvdevTouch) << "EV_ABS TRACKING_ID -1 touch point released";
+                    qCDebug(qLcEvdevTouch) << "EV_ABS TRACKING_ID = -1 touch point released";
                 }
                 else
                 {
                     m_contacts[m_currentSlot].state = Qt::TouchPointPressed;
                     m_contacts[m_currentSlot].trackingId = m_currentData.trackingId;
-                    qCDebug(qLcEvdevTouch) << "EV_ABS TRACKING_ID !-1 touch point pressed";
+                    qCDebug(qLcEvdevTouch) << "EV_ABS TRACKING_ID != -1 touch point pressed";
                 }
             }
         }
@@ -581,8 +587,8 @@ void QEvdevTouchScreenData::processInputEvent(input_event *data)
             qCDebug(qLcEvdevTouch) << "EV_ABS TOUCH_MAJOR";
             m_currentData.maj = data->value;
             // MODIFICATION two lines followed are commented
-            // if (data->value == 0)
-            //    m_currentData.state = Qt::TouchPointReleased;
+            if (data->value == 0)
+                m_currentData.state = Qt::TouchPointReleased;
             if (m_typeB)
                 m_contacts[m_currentSlot].maj = m_currentData.maj;
         }
@@ -612,11 +618,11 @@ void QEvdevTouchScreenData::processInputEvent(input_event *data)
         }
 
         // MODIFICATION change state to press
-        if (data->code == BTN_TOUCH && data->value == 1)
-        {
-            m_contacts[m_currentSlot].state = Qt::TouchPointPressed;
-            qCDebug(qLcEvdevTouch) << "EV_KEY BTN_TOUCH 1 touchpoint pressed";
-        }
+        //        if (data->code == BTN_TOUCH && data->value == 1)
+        //        {
+        //            m_contacts[m_currentSlot].state = Qt::TouchPointPressed;
+        //            qCDebug(qLcEvdevTouch) << "EV_KEY BTN_TOUCH 1 touchpoint pressed";
+        //        }
     }
     else if (data->type == EV_SYN && data->code == SYN_MT_REPORT && m_lastEventType != EV_SYN)
     {
@@ -748,6 +754,8 @@ void QEvdevTouchScreenData::processInputEvent(input_event *data)
         if (!m_touchPoints.isEmpty() && (hasPressure || combinedStates != Qt::TouchPointStationary))
             reportPoints();
     }
+
+    qCDebug(qLcEvdevTouch) << "Contact state:" << m_contacts[0].state;
 
     m_lastEventType = data->type;
 }
@@ -896,7 +904,7 @@ void QEvdevTouchScreenData::reportPoints()
             qCDebug(qLcEvents) << "reporting" << tp;
 
         qCDebug(qLcEvdevTouch) << "Screen rect:" << winRect;
-        qCDebug(qLcEvdevTouch) << "Registering touch point:" << tp;
+        qCDebug(qLcEvdevTouch) << "Registering touch point:" << tp << tp.state;
     }
 
     // Let qguiapp pick the target window.
