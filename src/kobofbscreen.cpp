@@ -7,7 +7,7 @@
 // force the compiler to link i2c-tools
 extern "C"
 {
-#include "i2c/smbus.h"
+#include "i2c-tools/include/i2c/smbus.h"
     __s32 (*i2c_smbus_read_byte_fp)(int) = &i2c_smbus_read_byte;
 }
 
