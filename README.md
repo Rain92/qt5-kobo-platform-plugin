@@ -1,6 +1,10 @@
 # qt5-kobo-platform-plugin
 
-This fork no longer has any reasons to be. This used to be my sandbox trying to fix some issues it had in the past. Issues has been fixed by now. So yeah ... That's it, go look at the original one instead.
+```diff
+- This fork no longer has any reasons to be. 
+- This used to be my sandbox trying to fix some issues it had in the past.
+- Issues has been fixed by now. So yeah ... That's it, go look at the original one instead.
+```
 
 A Qt5 platform backend plugin for Kobo E-Ink devices. \
 Supports most of the Kobo platform functons including E-Ink screen refresh control,
