@@ -1,9 +1,7 @@
 # qt5-kobo-platform-plugin
 
 ```diff
-- This fork no longer has any reasons to be. 
-- This used to be my sandbox trying to fix some issues it had in the past.
-- Issues has been fixed by now. So yeah ... That's it, go look at the original one instead.
+- This is my little sandbox trying to fix the Kobo Glo HD release events being ignored
 ```
 
 A Qt5 platform backend plugin for Kobo E-Ink devices. \
