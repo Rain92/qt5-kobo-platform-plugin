@@ -103,8 +103,8 @@ public:
     struct Contact
     {
         int trackingId = -1;
-        int x = 0;
-        int y = 0;
+        int x = -1;
+        int y = -1;
         int maj = -1;
         int pressure = 0;
         Qt::TouchPointState state = Qt::TouchPointPressed;
@@ -141,6 +141,7 @@ public:
     bool m_invertY;
     int m_rotate;
     bool m_singleTouch;
+    bool m_btnTool;
     QString m_screenName;
     mutable QPointer<QScreen> m_screen;
     QRect m_screenGeometry;
@@ -192,6 +193,7 @@ QEvdevTouchScreenData::QEvdevTouchScreenData(QEvdevTouchScreenHandler *q_ptr, co
       m_forceToActiveWindow(false),
       m_typeB(false),
       m_singleTouch(false),
+      m_btnTool(false),
       m_filtered(false),
       m_prediction(0)
 {
@@ -320,6 +322,9 @@ QEvdevTouchScreenHandler::QEvdevTouchScreenHandler(const QString &device, const 
         d->m_typeB = testBit(ABS_MT_SLOT, absbits);
         d->m_singleTouch = !testBit(ABS_MT_POSITION_X, absbits);
     }
+    long keybits[NUM_LONGS(KEY_CNT)];
+    if (ioctl(m_fd, EVIOCGBIT(EV_KEY, sizeof(keybits)), keybits) >= 0)
+        d->m_btnTool = testBit(BTN_TOOL_FINGER, keybits); // TODO aryetis : test this
 
     d->deviceNode = device;
     qCDebug(qLcEvdevTouch, "evdevtouch: %ls: Protocol type %c (%s), filtered=%s",
@@ -522,6 +527,9 @@ void QEvdevTouchScreenData::addTouchPoint(const Contact &contact, Qt::TouchPoint
 
 void QEvdevTouchScreenData::processInputEvent(input_event *data)
 {
+    /****************************
+     *          EV_ABS          * => fill touch inputs events's data one by one in the same m_contacts slot until EV_SYN;SYN_MT_REPORT
+     ****************************/
     if (data->type == EV_ABS)
     {
         if (data->code == ABS_MT_POSITION_X || (m_singleTouch && data->code == ABS_X))
@@ -586,9 +594,10 @@ void QEvdevTouchScreenData::processInputEvent(input_event *data)
         {
             qCDebug(qLcEvdevTouch) << "EV_ABS TOUCH_MAJOR";
             m_currentData.maj = data->value;
-            // MODIFICATION two lines followed are commented
-            //if (data->value == 0)
-            //    m_currentData.state = Qt::TouchPointReleased;
+            // kiwilex : MODIFICATION two lines followed are commented
+            // aryetis : Why ?!? I'm putting them back in. Otherwise it breaks gloHD, checking for BTN_TOOL_FINGER events should be enough :tm:
+            if (data->value == 0 && !m_btnTool)
+                m_currentData.state = Qt::TouchPointReleased;
             if (m_typeB)
                 m_contacts[m_currentSlot].maj = m_currentData.maj;
         }
@@ -608,6 +617,9 @@ void QEvdevTouchScreenData::processInputEvent(input_event *data)
             qCDebug(qLcEvdevTouch) << "EV_ABS SLOT";
         }
     }
+    /****************************
+     *          EV_KEY          * => physical (and touch cover) button (and touch for some devices too)
+     ****************************/
     else if (data->type == EV_KEY && !m_typeB)
     {
         qCDebug(qLcEvdevTouch) << "EV_KEY";
@@ -617,13 +629,17 @@ void QEvdevTouchScreenData::processInputEvent(input_event *data)
             qCDebug(qLcEvdevTouch) << "EV_KEY BTN_TOUCH 0 touchpoint released";
         }
 
-        // MODIFICATION change state to press
+        // kiwilex : MODIFICATION change state to press
+        // aryetis : sounds good.
         if (data->code == BTN_TOUCH && data->value == 1)
         {
             m_contacts[m_currentSlot].state = Qt::TouchPointPressed;
             qCDebug(qLcEvdevTouch) << "EV_KEY BTN_TOUCH 1 touchpoint pressed";
         }
     }
+    /****************************
+     *  SYN_MT_REPORT 1st stage * => increment m_contacts's key/slot
+     ****************************/
     else if (data->type == EV_SYN && data->code == SYN_MT_REPORT && m_lastEventType != EV_SYN)
     {
         qCDebug(qLcEvdevTouch) << "EV_SYN MT_REPORT && lastEvent was not EV_SYN";
@@ -636,6 +652,9 @@ void QEvdevTouchScreenData::processInputEvent(input_event *data)
         m_contacts.insert(key, m_currentData);
         m_currentData = Contact();
     }
+    /****************************
+     *  SYN_MT_REPORT 2nd stage * => sanitize m_contacts and deduce m_touchpoints to send to Qt based previous values
+     ****************************/
     else if (data->type == EV_SYN && data->code == SYN_REPORT)
     {
         qCDebug(qLcEvdevTouch) << "EV_SYN SYN_REPORT";
