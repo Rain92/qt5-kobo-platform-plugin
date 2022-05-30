@@ -497,6 +497,9 @@ void QEvdevTouchScreenHandler::unregisterTouchDevice()
 
 void QEvdevTouchScreenData::addTouchPoint(const Contact &contact, Qt::TouchPointStates *combinedStates)
 {
+    if (contact.x == -1 && contact.y == -1)
+        return; // failsafe, for devices with ABS_MT_TRACKING_ID not starting at 0
+
     QWindowSystemInterface::TouchPoint tp;
     tp.id = contact.trackingId;
     tp.flags = contact.flags;
@@ -528,7 +531,7 @@ void QEvdevTouchScreenData::addTouchPoint(const Contact &contact, Qt::TouchPoint
 void QEvdevTouchScreenData::processInputEvent(input_event *data)
 {
     /****************************
-     *          EV_ABS          * => fill touch inputs events's data one by one in the same m_contacts slot until EV_SYN;SYN_MT_REPORT
+     *          EV_ABS          * => fill touch inputs events's data one by one
      ****************************/
     if (data->type == EV_ABS)
     {
@@ -595,7 +598,9 @@ void QEvdevTouchScreenData::processInputEvent(input_event *data)
             qCDebug(qLcEvdevTouch) << "EV_ABS TOUCH_MAJOR";
             m_currentData.maj = data->value;
             // kiwilex : MODIFICATION two lines followed are commented
-            // aryetis : Why ?!? I'm putting them back in. Otherwise it breaks gloHD, checking for BTN_TOOL_FINGER events should be enough :tm:
+            // aryetis : Why ? I'm putting them back in. Otherwise it breaks gloHD, branching according to
+            // the way the device handles BTN_TOOL_FINGER events should be enough according to
+            // https://www.kernel.org/doc/Documentation/input/multi-touch-protocol.txt (search for BTN_TOOL_*TAP)
             if (data->value == 0 && !m_btnTool)
                 m_currentData.state = Qt::TouchPointReleased;
             if (m_typeB)
@@ -618,7 +623,7 @@ void QEvdevTouchScreenData::processInputEvent(input_event *data)
         }
     }
     /****************************
-     *          EV_KEY          * => physical (and touch cover) button (and touch for some devices too)
+     *          EV_KEY          * => physical buttons, cover button, touch inputs.
      ****************************/
     else if (data->type == EV_KEY && !m_typeB)
     {
@@ -630,7 +635,10 @@ void QEvdevTouchScreenData::processInputEvent(input_event *data)
         }
 
         // kiwilex : MODIFICATION change state to press
-        // aryetis : sounds good.
+        // aryetis : Those sounds good. BUT ! On Glo HD the first ABS_MT_TRACKING_ID starts at 1
+        // => we will insert an invalid contact at slot 0
+        // qt doesn't really mind interpreting those but I do. At the same time I don't want to change too much.
+        // ==> let it slip but filter invalid contacts at addTouchPoint() based on x and y values.
         if (data->code == BTN_TOUCH && data->value == 1)
         {
             m_contacts[m_currentSlot].state = Qt::TouchPointPressed;
@@ -653,7 +661,7 @@ void QEvdevTouchScreenData::processInputEvent(input_event *data)
         m_currentData = Contact();
     }
     /****************************
-     *  SYN_MT_REPORT 2nd stage * => sanitize m_contacts and deduce m_touchpoints to send to Qt based previous values
+     *  SYN_MT_REPORT 2nd stage * => sanitize m_contacts and deduce m_touchpoints to send to Qt
      ****************************/
     else if (data->type == EV_SYN && data->code == SYN_REPORT)
     {
