@@ -15,7 +15,7 @@ public:
 QPlatformIntegration* KoboPlatformIntegrationPlugin::create(const QString& system,
                                                             const QStringList& paramList)
 {
-    if (!system.compare("kobo_obenkyobo", Qt::CaseInsensitive))
+    if (!system.compare("kobo", Qt::CaseInsensitive))
         return new KoboPlatformIntegration(paramList);
 
     return 0;
