@@ -103,8 +103,8 @@ public:
     struct Contact
     {
         int trackingId = -1;
-        int x = 0;
-        int y = 0;
+        int x = -1;
+        int y = -1;
         int maj = -1;
         int pressure = 0;
         Qt::TouchPointState state = Qt::TouchPointPressed;
@@ -141,6 +141,7 @@ public:
     bool m_invertY;
     int m_rotate;
     bool m_singleTouch;
+    bool m_btnTool;
     QString m_screenName;
     mutable QPointer<QScreen> m_screen;
     QRect m_screenGeometry;
@@ -192,6 +193,7 @@ QEvdevTouchScreenData::QEvdevTouchScreenData(QEvdevTouchScreenHandler *q_ptr, co
       m_forceToActiveWindow(false),
       m_typeB(false),
       m_singleTouch(false),
+      m_btnTool(false),
       m_filtered(false),
       m_prediction(0)
 {
@@ -320,6 +322,9 @@ QEvdevTouchScreenHandler::QEvdevTouchScreenHandler(const QString &device, const 
         d->m_typeB = testBit(ABS_MT_SLOT, absbits);
         d->m_singleTouch = !testBit(ABS_MT_POSITION_X, absbits);
     }
+    long keybits[NUM_LONGS(KEY_CNT)];
+    if (ioctl(m_fd, EVIOCGBIT(EV_KEY, sizeof(keybits)), keybits) >= 0)
+        d->m_btnTool = testBit(BTN_TOOL_FINGER, keybits);
 
     d->deviceNode = device;
     qCDebug(qLcEvdevTouch, "evdevtouch: %ls: Protocol type %c (%s), filtered=%s",
@@ -492,6 +497,9 @@ void QEvdevTouchScreenHandler::unregisterTouchDevice()
 
 void QEvdevTouchScreenData::addTouchPoint(const Contact &contact, Qt::TouchPointStates *combinedStates)
 {
+    if (contact.x == -1 && contact.y == -1)
+        return; // failsafe, for devices with ABS_MT_TRACKING_ID not starting at 0
+
     QWindowSystemInterface::TouchPoint tp;
     tp.id = contact.trackingId;
     tp.flags = contact.flags;
@@ -586,9 +594,8 @@ void QEvdevTouchScreenData::processInputEvent(input_event *data)
         {
             qCDebug(qLcEvdevTouch) << "EV_ABS TOUCH_MAJOR";
             m_currentData.maj = data->value;
-            // MODIFICATION two lines followed are commented
-            //if (data->value == 0)
-            //    m_currentData.state = Qt::TouchPointReleased;
+            if (data->value == 0 && !m_btnTool)
+                m_currentData.state = Qt::TouchPointReleased;
             if (m_typeB)
                 m_contacts[m_currentSlot].maj = m_currentData.maj;
         }
@@ -617,7 +624,8 @@ void QEvdevTouchScreenData::processInputEvent(input_event *data)
             qCDebug(qLcEvdevTouch) << "EV_KEY BTN_TOUCH 0 touchpoint released";
         }
 
-        // MODIFICATION change state to press
+        // On some devices (Glo HD) ABS_MT_TRACKING_ID starts at 1
+        // => there will be malformed events with ABS_MT_TRACKING_ID 0 => filter those at addTouchPoint().
         if (data->code == BTN_TOUCH && data->value == 1)
         {
             m_contacts[m_currentSlot].state = Qt::TouchPointPressed;
