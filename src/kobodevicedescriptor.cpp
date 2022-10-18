@@ -222,7 +222,6 @@ KoboDeviceDescriptor KoboLuna = {
 };
 
 // Kobo Elipsa
-// TODO...
 KoboDeviceDescriptor KoboEuropa = {
     .device = KoboElipsa,
     .mark = 8,
@@ -233,6 +232,72 @@ KoboDeviceDescriptor KoboEuropa = {
     .batterySysfs = "/sys/class/power_supply/battery",
     .ntxDev = "/dev/input/by-path/platform-ntx_event0-event",
     .touchDev = "/dev/input/by-path/platform-0-0010-event",
+};
+
+// Kobo Sage
+KoboDeviceDescriptor KoboCadmus = {
+    .device = KoboSage,
+    .mark = 8,
+    .dpi = 300,
+    .canToggleChargingLED = true,
+    .hasGSensor = true,
+    .frontlightSettings =
+        {
+            .hasNaturalLight = true,
+            .hasNaturalLightMixer = true,
+            .naturalLightInverted = false,
+            .naturalLightMin = 0,
+            .naturalLightMax = 10,
+            .frontlightDevWhite = "/sys/class/backlight/mxc_msp430.0/brightness",
+            .frontlightDevMixer = "/sys/class/leds/aw99703-bl_FL1/color",
+        },
+    .isSunxi = true,
+    .batterySysfs = "/sys/class/power_supply/battery",
+    .ntxDev = "/dev/input/by-path/platform-ntx_event0-event",
+    .touchDev = "/dev/input/by-path/platform-0-0010-event",
+
+};
+
+// Kobo Libra 2
+KoboDeviceDescriptor KoboIo = {
+    .device = KoboLibra2,
+    .mark = 7,
+    .dpi = 300,
+    .canToggleChargingLED = true,
+    .hasGSensor = true,
+    .touchscreenSettings{.invertX = false},
+    .frontlightSettings =
+        {
+            .hasNaturalLight = true,
+            .hasNaturalLightMixer = true,
+            .naturalLightInverted = true,
+            .naturalLightMin = 0,
+            .naturalLightMax = 10,
+            .frontlightDevWhite = "/sys/class/backlight/mxc_msp430.0/brightness",
+            .frontlightDevMixer = "/sys/class/leds/aw99703-bl_FL1/color",
+        },
+    .batterySysfs = "/sys/class/power_supply/battery",
+};
+
+// Kobo Clara 2E
+KoboDeviceDescriptor KoboGoldfinch = {
+    .device = KoboClara2E,
+    .mark = 7,
+    .dpi = 300,
+    .canToggleChargingLED = true,
+    .hasGSensor = true,
+    .frontlightSettings =
+        {
+            .hasNaturalLight = true,
+            .hasNaturalLightMixer = true,
+            .naturalLightInverted = true,
+            .naturalLightMin = 0,
+            .naturalLightMax = 10,
+            .frontlightDevWhite = "/sys/class/backlight/mxc_msp430.0/brightness",
+            .frontlightDevMixer = "/sys/class/leds/aw99703-bl_FL1/color",
+        },
+    .batterySysfs = "/sys/class/power_supply/battery",
+    .powerDev = "/dev/input/by-path/platform-bd71828-pwrkey-event",
 };
 
 static QString exec(const char *cmd)
@@ -357,6 +422,18 @@ KoboDeviceDescriptor determineDevice()
     else if (deviceName == "europa")
     {
         device = KoboEuropa;
+    }
+    else if (deviceName == "cadmus")
+    {
+        device = KoboCadmus;
+    }
+    else if (deviceName == "io")
+    {
+        device = KoboIo;
+    }
+    else if (deviceName == "goldfinch")
+    {
+        device = KoboGoldfinch;
     }
     else
     {

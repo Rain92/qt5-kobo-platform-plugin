@@ -25,7 +25,10 @@ enum KoboDevice
     KoboForma,
     KoboLibraH2O,
     KoboNia,
-    KoboElipsa
+    KoboElipsa,
+    KoboSage,
+    KoboLibra2,
+    KoboClara2E
 };
 
 struct TouchscreenSettings
@@ -88,6 +91,8 @@ struct KoboDeviceDescriptor
     QString ntxDev = "/dev/input/event0";
     // Stable path to the Touch input device
     QString touchDev = "/dev/input/event1";
+    // Stable path to the Power Button input device
+    QString powerDev = "null";
 };
 
 KoboDeviceDescriptor determineDevice();
