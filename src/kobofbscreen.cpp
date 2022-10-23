@@ -238,6 +238,16 @@ ScreenRotation KoboFbScreen::getScreenRotation()
     return (ScreenRotation)fbink_rota_native_to_canonical(fbink_state.current_rota);
 }
 
+FBInkConfig *KoboFbScreen::getFBInkConfig()
+{
+    return &fbink_cfg;
+}
+
+FBInkState *KoboFbScreen::getFBInkState()
+{
+    return &fbink_state;
+}
+
 void KoboFbScreen::setFullScreenRefreshMode(WaveForm waveform)
 {
     this->waveFormFullscreen = waveform;
@@ -329,4 +339,24 @@ QRegion KoboFbScreen::doRedraw()
     //        qDebug() << "Painted region" << touched << "in" << t.elapsed() << "ms";
 
     return touched;
+}
+
+void KoboFbScreen::doSunxiPenRefresh()
+{
+    // NOTE: On sunxi, send a !pen refresh on pen up because otherwise the driver
+    // softlocks,
+    //       and ultimately trips a reboot watchdog...
+    // NOTE: Nickel also toggles pen mode *off* before doing that...
+    //       Let's do the same, as we can still somewhat reliably kill the kernel
+    //       one way or another otherwise...
+    // NOTE: That means that any other competing refresh is potentially dangerous:
+    //       make sure only pen refreshes are sent while in pen mode!
+    fbink_sunxi_toggle_ntx_pen_mode(mFbFd, false);
+
+    const WFM_MODE_INDEX_T pen_wfm = fbink_cfg.wfm_mode;
+    fbink_cfg.wfm_mode = WFM_GL16;
+    fbink_refresh(mFbFd, 0, 0, 0, 0, &fbink_cfg);
+    fbink_cfg.wfm_mode = pen_wfm;
+
+    fbink_sunxi_toggle_ntx_pen_mode(mFbFd, true);
 }

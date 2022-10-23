@@ -10,6 +10,8 @@
 #include <qevdevtouchmanager_p.h>
 #include <qpa/qplatforminputcontextfactory_p.h>
 
+#include "fttest.h"
+
 KoboPlatformIntegration::KoboPlatformIntegration(const QStringList &paramList)
     : m_paramList(paramList),
       m_primaryScreen(nullptr),
@@ -91,6 +93,13 @@ QPlatformServices *KoboPlatformIntegration::services() const
     return m_services.data();
 }
 
+void test(const FTrace_Slot *touch)
+{
+    fprintf(stdout, "%ld.%.6ld [%s] [%s] @ (%4d, %4d) -> (%4d, %4d)\n", touch->time.tv_sec,
+            touch->time.tv_usec, tool_type_to_str(touch->tool), touch->state == DOWN ? "DOWN" : " UP ",
+            touch->pos.x, touch->pos.y, touch->translatedPos.x, touch->translatedPos.y);
+}
+
 void KoboPlatformIntegration::createInputHandlers()
 {
     QString touchscreenDevice(koboDevice.touchDev);
@@ -106,6 +115,7 @@ void KoboPlatformIntegration::createInputHandlers()
     bool manualRangeFlip = false;
     int touchRangeX = 0;
     int touchRangeY = 0;
+    bool experimentaltouchhandler = false;
 
     auto screenrot = m_primaryScreen->getScreenRotation();
 
@@ -141,6 +151,10 @@ void KoboPlatformIntegration::createInputHandlers()
         {
             manualRangeFlip = true;
         }
+        if(arg.contains("experimentaltouchhandler"))
+        {
+            experimentaltouchhandler = true;
+        }
     }
 
     bool flipTouchscreenAxes = koboDevice.touchscreenSettings.swapXY ^ (screenrot & 1);
@@ -162,13 +176,15 @@ void KoboPlatformIntegration::createInputHandlers()
         evdevTouchArgs += QString(":hw_range_x_max=%1").arg(touchRangeX);
     if (touchRangeY > 0)
         evdevTouchArgs += QString(":hw_range_y_max=%1").arg(touchRangeY);
+    if(experimentaltouchhandler)
+        evdevTouchArgs += ":experimentaltouchhandler";
 
     evdevTouchArgs += QString(":screenwidth=%1").arg(koboDevice.width);
     evdevTouchArgs += QString(":screenheight=%1").arg(koboDevice.height);
 
     evdevTouchArgs += QString(":screenrotation=%1").arg(screenrot * 90);
 
-    new QEvdevTouchManager("EvdevTouch", evdevTouchArgs, this);
+    new QEvdevTouchManager("EvdevTouch", evdevTouchArgs, this, m_primaryScreen);
 
     koboKeyboard = new KoboButtonIntegration(this, koboDevice.ntxDev, debug);
     koboAdditions = new KoboPlatformAdditions(this, koboDevice);

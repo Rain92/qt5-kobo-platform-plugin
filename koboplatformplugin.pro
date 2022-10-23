@@ -26,13 +26,13 @@ FBInkBuildEvent.input = $$PWD/FBink/*.c $$PWD/FBink/*.h
 PHONY_DEPS = .
 FBInkBuildEvent.input = PHONY_DEPS
 FBInkBuildEvent.output = FBInk
-FBInkBuildEvent.clean_commands = make -C $$PWD/FBInk clean
+FBInkBuildEvent.clean_commands = make -C $$PWD/FBInk distclean
 
 FBInkBuildEvent.name = building FBInk
 FBInkBuildEvent.CONFIG += no_link target_predeps
 QMAKE_EXTRA_COMPILERS += FBInkBuildEvent
 
-INCLUDEPATH += $$PWD/FBInk $$PWD/FBInk/libi2c-staged/include
+INCLUDEPATH += $$PWD/FBInk $$PWD/FBInk/libi2c-staged/include $$PWD/FBInk/libevdev-staged/include/libevdev-1.0
 LIBS += -L$$PWD/FBInk/libi2c-staged/lib/ -l:libi2c.a
 
 CONFIG(debug, debug|release) {
@@ -54,6 +54,9 @@ SOURCES = src/main.cpp \
           src/koboplatformadditions.cpp \
           src/koboplatformintegration.cpp \
           src/kobowifimanager.cpp \
+          src/qevdevtouchdata.cpp \
+          src/qevdevtouchdata2.cpp \
+          src/qevdevtouchhandlerthread.cpp \
           src/qevdevtouchmanager.cpp \
           src/qevdevtouchhandler.cpp
 
@@ -67,8 +70,11 @@ HEADERS = \
           src/koboplatformfunctions.h \
           src/koboplatformintegration.h \
           src/kobowifimanager.h \
+          src/qevdevtouchdata.h \
+          src/qevdevtouchdata2.h \
           src/qevdevtouchfilter_p.h \
-          src/qevdevtouchhandler_p.h \
+          src/qevdevtouchhandler.h \
+          src/qevdevtouchhandlerthread.h \
           src/qevdevtouchmanager_p.h
 
 

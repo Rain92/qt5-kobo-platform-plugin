@@ -37,6 +37,9 @@
 **
 ****************************************************************************/
 
+#ifndef QEVDEVTOUCHFILTER_H
+#define QEVDEVTOUCHFILTER_H
+
 #include <qglobal.h>
 
 //
@@ -63,60 +66,38 @@ struct QEvdevTouchFilter
     float velocity() const { return x.y; }
 
 private:
-    struct vec2 {
-        vec2(float x = 0.0f, float y = 0.0f) : x(x), y(y) { }
+    struct vec2
+    {
+        vec2(float x = 0.0f, float y = 0.0f) : x(x), y(y) {}
         float x, y;
 
-        vec2 operator-(vec2 v) {
-            return vec2(x - v.x, y - v.y);
-        }
+        vec2 operator-(vec2 v) { return vec2(x - v.x, y - v.y); }
 
-        vec2 operator+(vec2 v) {
-            return vec2(x + v.x, y + v.y);
-        }
+        vec2 operator+(vec2 v) { return vec2(x + v.x, y + v.y); }
     };
 
-    struct mat2 {
+    struct mat2
+    {
         float a, b, c, d;
-        mat2(float a = 1.0f, float b = 0.0f, float c = 0.0f, float d = 1.0f)
-            : a(a)
-            , b(b)
-            , c(c)
-            , d(d)
+        mat2(float a = 1.0f, float b = 0.0f, float c = 0.0f, float d = 1.0f) : a(a), b(b), c(c), d(d) {}
+
+        mat2 transposed() const { return mat2(a, c, b, d); }
+
+        mat2 inverted() const
         {
-        }
-
-        mat2 transposed() const {
-            return mat2(a, c,
-                        b, d);
-        }
-
-        mat2 inverted() const {
             float det = 1.0f / (a * d - b * c);
-            return mat2( d * det, -b * det,
-                        -c * det,  a * det);
+            return mat2(d * det, -b * det, -c * det, a * det);
         }
 
-        mat2 operator+(mat2 m) const {
-            return mat2(a + m.a, b + m.b,
-                        c + m.c, d + m.d);
-        }
+        mat2 operator+(mat2 m) const { return mat2(a + m.a, b + m.b, c + m.c, d + m.d); }
 
-        mat2 operator-(mat2 m) const {
-            return mat2(a - m.a, b - m.b,
-                        c - m.c, d - m.d);
-        }
+        mat2 operator-(mat2 m) const { return mat2(a - m.a, b - m.b, c - m.c, d - m.d); }
 
-        vec2 operator*(vec2 v) const {
-            return vec2(a * v.x + b * v.y,
-                        c * v.x + d * v.y);
-        }
+        vec2 operator*(vec2 v) const { return vec2(a * v.x + b * v.y, c * v.x + d * v.y); }
 
-        mat2 operator*(mat2 M) const {
-            return mat2(a * M.a + b * M.c,
-                        a * M.b + b * M.d,
-                        c * M.a + d * M.c,
-                        c * M.b + d * M.d);
+        mat2 operator*(mat2 M) const
+        {
+            return mat2(a * M.a + b * M.c, a * M.b + b * M.d, c * M.a + d * M.c, c * M.b + d * M.d);
         }
     };
 
@@ -128,21 +109,16 @@ private:
     mat2 H;
 };
 
-inline QEvdevTouchFilter::QEvdevTouchFilter()
-{
-}
+inline QEvdevTouchFilter::QEvdevTouchFilter() {}
 
 inline void QEvdevTouchFilter::initialize(float pos, float velocity)
 {
     x = vec2(pos, velocity);
 
-    P = mat2(0.0f, 0.0f,
-             0.0f, 0.0f);
+    P = mat2(0.0f, 0.0f, 0.0f, 0.0f);
 
-    Q = mat2(0.0f, 0.0f,
-             0.0f, 0.1f);
-    R = mat2(0.1f, 0.0f,
-             0.0f, 0.1f);
+    Q = mat2(0.0f, 0.0f, 0.0f, 0.1f);
+    R = mat2(0.1f, 0.0f, 0.0f, 0.1f);
 }
 
 inline void QEvdevTouchFilter::update(float pos, float velocity, float dT)
@@ -169,7 +145,8 @@ inline void QEvdevTouchFilter::update(float pos, float velocity, float dT)
     vec2 y = m - x;
     x = x + K * y;
     P = (mat2() - K) * P;
-
 }
 
 QT_END_NAMESPACE
+
+#endif  // QEVDEVTOUCHFILTER_H

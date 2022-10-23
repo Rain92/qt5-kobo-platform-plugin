@@ -1,9 +1,10 @@
 /****************************************************************************
 **
 ** Copyright (C) 2016 The Qt Company Ltd.
+** Copyright (C) 2016 Jolla Ltd, author: <gunnar.sletta@jollamobile.com>
 ** Contact: https://www.qt.io/licensing/
 **
-** This file is part of the QtGui module of the Qt Toolkit.
+** This file is part of the plugins module of the Qt Toolkit.
 **
 ** $QT_BEGIN_LICENSE:LGPL$
 ** Commercial License Usage
@@ -37,56 +38,38 @@
 **
 ****************************************************************************/
 
-#ifndef QEVDEVTOUCHMANAGER_P_H
-#define QEVDEVTOUCHMANAGER_P_H
+#ifndef QEVDEVTOUCHDATA2H_H
+#define QEVDEVTOUCHDATA2H_H
 
-//
-//  W A R N I N G
-//  -------------
-//
-// This file is not part of the Qt API.  It exists purely as an
-// implementation detail.  This header file may change from version to
-// version without notice, or even be removed.
-//
-// We mean it.
-//
+#include <linux/input.h>
+#include <qpa/qwindowsysteminterface.h>
 
-//#include <QtInputSupport/private/devicehandlerlist_p.h>
-
-#include <QHash>
-#include <QObject>
-#include <QSocketNotifier>
-#include <memory>
+#include "fbink.h"
 #include "kobofbscreen.h"
+#include "qevdevtouchdata.h"
+#include "qevdevtouchfilter_p.h"
+
+
+#define ABS_MT_SLOT 0x2f
 
 QT_BEGIN_NAMESPACE
 
-class QEvdevTouchScreenHandlerThread;
+class QEvdevTouchScreenHandler;
 
-class QEvdevTouchManager : public QObject
+class QEvdevTouchScreenData2 : public QEvdevTouchScreenData
 {
 public:
-    struct Device
-    {
-        QString deviceNode;
-        std::unique_ptr<QEvdevTouchScreenHandlerThread> handler;
-    };
+    QEvdevTouchScreenData2(QEvdevTouchScreenHandler *q_ptr, const QStringList &args, KoboFbScreen * koboFbScreen);
 
-    QEvdevTouchManager(const QString &key, const QString &spec, QObject *parent, KoboFbScreen *koboFbScreen);
-    ~QEvdevTouchManager();
 
-    void addDevice(const QString &deviceNode);
-    void removeDevice(const QString &deviceNode);
-
-    void updateInputDeviceCount();
-
+    QPointF transformTouchPoint(const QPointF &p, bool up);
+    void processInputEvent(input_event *data) override;
+    void addTouchPoint(const Contact &contact, Qt::TouchPointStates *combinedStates) override;
 private:
-    QString m_spec;
-    QStringList devicePaths;
-    std::vector<Device> m_activeDevices;
-    KoboFbScreen *koboFbScreen;
+    FBInkState* fbink_state;
+    KoboFbScreen * koboFbScreen;
 };
 
 QT_END_NAMESPACE
 
-#endif  // QEVDEVTOUCHMANAGER_P_H
+#endif  // QEVDEVTOUCH_P_H

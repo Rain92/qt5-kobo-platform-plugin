@@ -1,9 +1,10 @@
 /****************************************************************************
 **
 ** Copyright (C) 2016 The Qt Company Ltd.
+** Copyright (C) 2016 Jolla Ltd, author: <gunnar.sletta@jollamobile.com>
 ** Contact: https://www.qt.io/licensing/
 **
-** This file is part of the QtGui module of the Qt Toolkit.
+** This file is part of the plugins module of the Qt Toolkit.
 **
 ** $QT_BEGIN_LICENSE:LGPL$
 ** Commercial License Usage
@@ -37,8 +38,8 @@
 **
 ****************************************************************************/
 
-#ifndef QEVDEVTOUCHMANAGER_P_H
-#define QEVDEVTOUCHMANAGER_P_H
+#ifndef QEVDEVTOUCHHANDLER_H
+#define QEVDEVTOUCHHANDLER_H
 
 //
 //  W A R N I N G
@@ -51,42 +52,51 @@
 // We mean it.
 //
 
-//#include <QtInputSupport/private/devicehandlerlist_p.h>
+#include <QtCore/private/qthread_p.h>
+#include <qpa/qwindowsysteminterface.h>
 
-#include <QHash>
+#include <QList>
 #include <QObject>
-#include <QSocketNotifier>
-#include <memory>
+#include <QString>
+#include <QThread>
 #include "kobofbscreen.h"
 
 QT_BEGIN_NAMESPACE
 
-class QEvdevTouchScreenHandlerThread;
+class QSocketNotifier;
+class QEvdevTouchScreenData;
 
-class QEvdevTouchManager : public QObject
+class QEvdevTouchScreenHandler : public QObject
 {
+    Q_OBJECT
+
 public:
-    struct Device
-    {
-        QString deviceNode;
-        std::unique_ptr<QEvdevTouchScreenHandlerThread> handler;
-    };
+    explicit QEvdevTouchScreenHandler(const QString &device, const QString &spec,
+                                      QObject *parent, KoboFbScreen *koboFbScreen);
+    ~QEvdevTouchScreenHandler();
 
-    QEvdevTouchManager(const QString &key, const QString &spec, QObject *parent, KoboFbScreen *koboFbScreen);
-    ~QEvdevTouchManager();
+    QTouchDevice *touchDevice() const;
 
-    void addDevice(const QString &deviceNode);
-    void removeDevice(const QString &deviceNode);
+    bool isFiltered() const;
 
-    void updateInputDeviceCount();
+    void readData();
+
+signals:
+    void touchPointsUpdated();
 
 private:
-    QString m_spec;
-    QStringList devicePaths;
-    std::vector<Device> m_activeDevices;
-    KoboFbScreen *koboFbScreen;
+    friend class QEvdevTouchScreenData;
+    friend class QEvdevTouchScreenHandlerThread;
+
+    void registerTouchDevice();
+    void unregisterTouchDevice();
+
+    QSocketNotifier *m_notify;
+    int m_fd;
+    QEvdevTouchScreenData *d;
+    QTouchDevice *m_device;
 };
 
 QT_END_NAMESPACE
 
-#endif  // QEVDEVTOUCHMANAGER_P_H
+#endif  // QEVDEVTOUCH_P_H

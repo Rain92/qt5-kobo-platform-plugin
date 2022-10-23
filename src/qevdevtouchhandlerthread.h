@@ -38,8 +38,8 @@
 **
 ****************************************************************************/
 
-#ifndef QEVDEVTOUCHHANDLER_P_H
-#define QEVDEVTOUCHHANDLER_P_H
+#ifndef QEVDEVTOUCHHANDLERTHREAD_H
+#define QEVDEVTOUCHHANDLERTHREAD_H
 
 //
 //  W A R N I N G
@@ -53,7 +53,6 @@
 //
 
 #include <QtCore/private/qthread_p.h>
-#include <QtGui/private/qtguiglobal_p.h>
 #include <qpa/qwindowsysteminterface.h>
 
 #include <QList>
@@ -61,50 +60,17 @@
 #include <QString>
 #include <QThread>
 
-#include "qevdevtouchfilter_p.h"
+#include "qevdevtouchdata.h"
+#include "qevdevtouchhandler.h"
 
 QT_BEGIN_NAMESPACE
-
-class QSocketNotifier;
-class QEvdevTouchScreenData;
-
-class QEvdevTouchScreenHandler : public QObject
-{
-    Q_OBJECT
-
-public:
-    explicit QEvdevTouchScreenHandler(const QString &device, const QString &spec = QString(),
-                                      QObject *parent = nullptr);
-    ~QEvdevTouchScreenHandler();
-
-    QTouchDevice *touchDevice() const;
-
-    bool isFiltered() const;
-
-    void readData();
-
-signals:
-    void touchPointsUpdated();
-
-private:
-    friend class QEvdevTouchScreenData;
-    friend class QEvdevTouchScreenHandlerThread;
-
-    void registerTouchDevice();
-    void unregisterTouchDevice();
-
-    QSocketNotifier *m_notify;
-    int m_fd;
-    QEvdevTouchScreenData *d;
-    QTouchDevice *m_device;
-};
 
 class QEvdevTouchScreenHandlerThread : public QDaemonThread
 {
     Q_OBJECT
 public:
     explicit QEvdevTouchScreenHandlerThread(const QString &device, const QString &spec,
-                                            QObject *parent = nullptr);
+                                            QObject *parent, KoboFbScreen *koboFbScreen);
     ~QEvdevTouchScreenHandlerThread();
     void run() override;
 
@@ -140,6 +106,8 @@ private:
     QHash<int, FilteredTouchPoint> m_filteredPoints;
 
     float m_touchRate;
+
+    KoboFbScreen *koboFbScreen;
 };
 
 QT_END_NAMESPACE
