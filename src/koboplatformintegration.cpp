@@ -10,8 +10,6 @@
 #include <qevdevtouchmanager_p.h>
 #include <qpa/qplatforminputcontextfactory_p.h>
 
-#include "fttest.h"
-
 KoboPlatformIntegration::KoboPlatformIntegration(const QStringList &paramList)
     : m_paramList(paramList),
       m_primaryScreen(nullptr),
@@ -91,13 +89,6 @@ QPlatformFontDatabase *KoboPlatformIntegration::fontDatabase() const
 QPlatformServices *KoboPlatformIntegration::services() const
 {
     return m_services.data();
-}
-
-void test(const FTrace_Slot *touch)
-{
-    fprintf(stdout, "%ld.%.6ld [%s] [%s] @ (%4d, %4d) -> (%4d, %4d)\n", touch->time.tv_sec,
-            touch->time.tv_usec, tool_type_to_str(touch->tool), touch->state == DOWN ? "DOWN" : " UP ",
-            touch->pos.x, touch->pos.y, touch->translatedPos.x, touch->translatedPos.y);
 }
 
 void KoboPlatformIntegration::createInputHandlers()
